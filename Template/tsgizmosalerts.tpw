@@ -1,0 +1,420 @@
+#!============================================================
+#EXTENSION(AlertKeyManager,'Alert Key Manager'),PROCEDURE,DESCRIPTION('[TS] Alert Key Manager')
+#INSERT(%AlertsPrompts)
+#!----------
+#ATSTART
+  #CALL(%AtAlertsStart)
+#ENDAT
+#!----------
+#AT(%DataSectionAfterWindow),PRIORITY(4000),DESCRIPTION(%ActiveTemplateInstanceDescription &' - Data')
+#INSERT(%AtAlertsDataSectionBeforeWindow)
+#ENDAT
+#!----------
+#AT(%AcceptLoopBeforeEventHandling),WHERE(%TSEnterSelectsOnList),PRIORITY(1325),DESCRIPTION(%ActiveTemplateInstanceDescription &' - Handle Select on List')
+IF PTS::Alerts.HandleSelectOnList()
+  CYCLE
+END
+#ENDAT
+#!----------
+#AT(%AcceptLoopBeforeEventHandling),PRIORITY(1375),DESCRIPTION(%ActiveTemplateInstanceDescription &' - Handle Pre-Alerts')
+PTS::Alerts.AlertKeys
+#ENDAT
+#!----------
+#AT(%WindowEventHandling, 'AlertKey'),PRIORITY(6000),DESCRIPTION(%ActiveTemplateInstanceDescription)
+#INSERT(%AtAlertsWindowEventHandlingAlertKey)
+#ENDAT
+#!----------
+#AT(%LocalProcedures),PRIORITY(4000),DESCRIPTION(%ActiveTemplateInstanceDescription)
+#INSERT(%AlertKeysLocalProc)
+#INSERT(%HandleAlertsLocalProc)
+    #IF(%TSEnterSelectsOnList)
+#INSERT(%HandleSelectOnListLocalProc)    
+    #ENDIF
+#ENDAT
+#!*****************************************************************************
+#GROUP(%AlertsPrompts)
+#SHEET
+  #TAB('Alert Keys')
+    #DISPLAY('This Extension will help you manage the Alert')
+    #DISPLAY('Keys on your Window.')
+    #BOXED('Keys To Alert')
+      #BUTTON('Keys To Alert'),MULTI(%PTSKeysToAlert,%PTSAlertedKey),INLINE
+        #PROMPT('Alerted Key:',KEYCODE),%PTSAlertedKey
+        #PROMPT('Action When Pressed:',OPTION),%PTSWhenPressed
+        #PROMPT('Push A Button',RADIO)
+        #PROMPT('Select A Tab',RADIO)
+        #PROMPT('Execute Code',RADIO)
+        #PROMPT('Conditional Alert',CHECK),%PTSConditional
+        #BOXED, WHERE(%PTSConditional)
+          #PROMPT('Condition:  IF',@S200),%PTSDCondition
+        #ENDBOXED
+        #BOXED, Where(%PTSWhenPressed='Push A Button'),AT(,90,,)
+          #PROMPT('Button To Press:',FROM(%CONTROL,%ControlType='BUTTON')),%PTSButtonToPress
+          #PROMPT('Only When On Tab',CHECK),%PTSOnlyOnTab
+          #PROMPT('Use Alternate If InActive',CHECK),%PTSAlternate
+          #BOXED, Where(%PTSAlternate)
+            #PROMPT('Alternate Button:',FROM(%CONTROL,%ControlType='BUTTON')),%PTSAlternateButton
+          #ENDBOXED
+          #BOXED, WHERE(%PTSOnlyOnTab)
+            #PROMPT('Sheet Control',FROM(%CONTROL,%ControlType='SHEET')),%PTSSheetControl
+            #PROMPT('Active Tab:',FROM(%CONTROL,%ControlType='TAB')),%PTSActiveTab
+          #ENDBOXED
+          #PROMPT('Control Must Have Focus',CHECK),%PTSFocus
+          #BOXED, Where(%PTSFocus)
+            #PROMPT('Control With Focus',CONTROL),%PTSFocusControl
+          #ENDBOXED
+        #ENDBOXED
+        #BOXED, Where(%PTSWhenPressed='Select A Tab'),AT(,90,,)
+          #PROMPT('Tab To Select:',FROM(%CONTROL,%ControlType='TAB')),%PTSTabToSelect
+          #PROMPT('Tab Sheet Control',FROM(%CONTROL,%ControlType='SHEET')),%PTSTabSheet
+          #PROMPT('Control To Select:',CONTROL),%PTSControlToSelect
+        #ENDBOXED
+        #BOXED, Where(%PTSWhenPressed='Execute Code'),AT(,90,,)
+          #PROMPT('Code To Execute:',@S80),%PTSCode
+          #PROMPT('Only When On Tab',CHECK),%PTSOnlyOnTab2
+          #BOXED, WHERE(%PTSOnlyOnTab2)
+            #PROMPT('Sheet Control',FROM(%CONTROL,%ControlType='SHEET')),%PTSSheetControl2
+            #PROMPT('Active Tab:',FROM(%CONTROL,%ControlType='TAB')),%PTSActiveTab2
+          #ENDBOXED
+          #PROMPT('Dependent On Active Control',CHECK),%PTSDepend
+          #BOXED, WHERE(%PTSDepend)
+            #PROMPT('Control',CONTROL),%PTSDControl
+          #ENDBOXED
+          #PROMPT('Control Must Have Focus',CHECK),%PTSFocus2
+          #BOXED, Where(%PTSFocus2)
+            #PROMPT('Control With Focus',CONTROL),%PTSFocusControl2
+          #ENDBOXED
+        #ENDBOXED
+      #ENDBUTTON
+    #ENDBOXED
+  #ENDTAB
+  #TAB('Enter Selects Record')
+    #DISPLAY('This Extension will allow the Enter Key to select a record')
+    #DISPLAY('when the List Box is called as a lookup, and to activate')
+    #DISPLAY('the Button you specify below.')
+    #DISPLAY('')
+    #!%TSActivate       is equated in code to %TSEnterSelectsOnList
+    #!%TSEnterList2     is equated in code to %TSEnterSelectsOnListListControl
+    #!%TSSelectButton2  is equated in code to %TSEnterSelectsOnListButtonControl
+    #!%TSOnlySelecting2 is equated in code to %TSEnterSelectsOnListOnSelectRecord
+    #PROMPT('Activate Enter Key',CHECK),%TSActivate
+    #BOXED,WHERE(%TSActivate)
+      #PROMPT('List Box to act on:',FROM(%CONTROL,%ControlType='LIST')),%TSEnterList2
+      #PROMPT('Button To Activate:',FROM(%CONTROL,%ControlType='BUTTON')),%TSSelectButton2
+      #PROMPT('Only When Selecting',CHECK),%TSOnlySelecting2,DEFAULT(1)
+    #ENDBOXED
+  #ENDTAB
+#ENDSHEET
+#!*****************************************************************************
+#GROUP(%AtAlertsStart)
+  #EQUATE(%TSEnterSelectsOnList              , %TSActivate      )
+  #EQUATE(%TSEnterSelectsOnListListControl   , %TSEnterList2    )
+  #EQUATE(%TSEnterSelectsOnListButtonControl , %TSSelectButton2 )
+  #EQUATE(%TSEnterSelectsOnListOnSelectRecord, %TSOnlySelecting2)
+#!*****************************************************************************
+#GROUP(%AtAlertsDataSectionBeforeWindow)
+PTS::Alerts          CLASS
+      #IF(%TSEnterSelectsOnList)
+IsDisabled             BOOL(FALSE)
+IsSelected             BOOL(FALSE)
+      #ENDIF
+AlertKeys              PROCEDURE
+HandleAlerts           PROCEDURE,BOOL
+      #IF(%TSEnterSelectsOnList)
+HandleSelectOnList     PROCEDURE,BOOL
+      #ENDIF
+                     END
+#!*****************************************************************************
+#GROUP(%AtAlertsWindowEventHandlingAlertKey)
+IF PTS::Alerts.HandleAlerts()
+  CYCLE
+END
+#!*****************************************************************************
+#GROUP(%AlertKeysLocalProc)
+
+PTS::Alerts.AlertKeys PROCEDURE
+  CODE
+  #EMBED(%TSStartOfAlertKeys,'TS-Start Of Alert Keys')
+  ALERT
+  #INSERT(%TSEnterSelectsOnListAlertKeysCode)
+      #FOR(%PTSKeysToAlert)
+  #INSERT(%AlertKeysOneKey)
+      #ENDFOR
+  #EMBED(%TSEndOfAlertKeys,'TS-End Of Alert Keys')
+
+#!*****************************************************************************
+#GROUP(%AlertKeysOneKey)
+    #IF(~%PTSOnlyOnTab AND ~%PTSOnlyOnTab2)
+      #IF(%PTSWhenPressed='Push A Button')
+        #IF(%PTSConditional)
+IF %PTSDCondition
+        #ENDIF
+  If %PTSButtonToPress{prop:hide}=false and %PTSButtonToPress{prop:disable}=false
+        #IF(%PTSFocus)
+    IF Focus()=%PTSFocusControl
+        #ENDIF
+      ALERT(%PTSAlertedKey)
+        #IF(%PTSFocus)
+    END
+        #ENDIF
+  END
+        #IF(%PTSConditional)
+END
+        #ENDIF
+        #IF (%PTSAlternate)
+          #IF(%PTSConditional)
+IF %PTSDCondition
+          #ENDIF
+  IF %PTSAlternateButton{prop:hide}=false and %PTSAlternateButton{prop:disable}=false
+          #IF(%PTSFocus)
+    IF Focus()=%PTSFocusControl
+          #ENDIF
+      ALERT(%PTSAlertedKey)
+          #IF(%PTSFocus)
+    END
+          #ENDIF
+  END
+          #IF(%PTSConditional)
+END
+          #ENDIF
+        #ENDIF
+        #CYCLE
+      #ENDIF
+      #IF(%PTSDepend)
+If %PTSDControl{prop:hide}=false and %PTSDControl{prop:disable}=false
+        #IF(%PTSConditional)
+  If %PTSDCondition
+        #ENDIF
+        #IF(%PTSFocus)
+    IF Focus()=%PTSFocusControl
+        #ENDIF
+      ALERT(%PTSAlertedKey)
+        #IF(%PTSFocus)
+    END
+        #ENDIF
+        #IF(%PTSConditional)
+  END       !End Condition
+        #ENDIF
+END
+      #ENDIF
+      #IF(%PTSWhenPressed<>'Push A Button' and ~%PTSDepend)
+        #IF(%PTSConditional)
+IF %PTSDCondition
+        #ENDIF
+        #IF(%PTSFocus)
+  IF Focus()=%PTSFocusControl
+        #ENDIF
+    ALERT(%PTSAlertedKey)
+        #IF(%PTSFocus)
+  END
+        #ENDIF
+        #IF(%PTSConditional)
+END
+        #ENDIF
+      #ENDIF
+      #CYCLE
+    #ENDIF
+    #IF(%PTSOnlyOnTab AND %PTSWhenPressed='Push A Button')
+IF %PTSSheetControl{prop:choicefeq}=%PTSActiveTab
+      #IF(%PTSConditional)
+  IF %PTSDCondition
+      #ENDIF
+      #IF(%PTSFocus)
+    IF Focus()=%PTSFocusControl
+      #ENDIF
+      ALERT(%PTSAlertedKey)
+      #IF(%PTSFocus)
+    END
+      #ENDIF
+      #IF(%PTSConditional)
+  END
+      #ENDIF
+END
+    #ENDIF
+    #IF(%PTSOnlyOnTab2 AND %PTSWhenPressed='Execute Code')
+IF %PTSSheetControl2{prop:choicefeq}=%PTSActiveTab2
+      #IF(%PTSConditional)
+  IF %PTSDCondition
+      #ENDIF
+      #IF(%PTSFocus)
+    IF Focus()=%PTSFocusControl
+      #ENDIF
+      ALERT(%PTSAlertedKey)
+      #IF(%PTSFocus)
+    END
+      #ENDIF
+      #IF(%PTSConditional)
+  END
+      #ENDIF
+END
+    #ENDIF
+#!*****************************************************************************
+#GROUP(%TSEnterSelectsOnListAlertKeysCode)
+    #IF(%TSEnterSelectsOnList)
+      #IF(%TSEnterSelectsOnListOnSelectRecord)
+        #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+IF OriginalRequest=SelectRecord
+        #ELSE
+IF SELF.Request=SelectRecord
+        #ENDIF
+      #ENDIF
+  ALERT(EnterKey)
+      #IF(%TSEnterSelectsOnListOnSelectRecord)
+END
+      #ENDIF
+    #ENDIF
+#!*****************************************************************************
+#GROUP(%HandleAlertsLocalProc)
+
+PTS::Alerts.HandleAlerts PROCEDURE !,BOOL
+WasAlertHandled            BOOL(FALSE)
+r:Field                    LONG
+
+  CODE
+      #IF(%TSEnterSelectsOnList)
+  IF SELF.IsDisabled
+    RETURN WasAlertHandled
+  END
+      #ENDIF
+  r:Field = CHOOSE(FIELD() <> 0, FIELD(), FOCUS())
+  #EMBED(%PTSHandleAlertsStart,'PTS Handle Alerts Start'),%ActiveTemplateInstance,MAP(%ActiveTemplateInstance,%ActiveTemplateinstanceDescription)
+  #FOR(%PTSKeysToAlert)
+  IF Keycode() = %PTSAlertedKey
+  #EMBED(%TSHandleAlertedKey,'TS-Handle Alerted Key'),%PTSKeysToAlert,MAP(%PTSKeysToAlert,%PTSAlertedKey)
+  #IF(%PTSWhenPressed='Push A Button')
+    #IF(%PTSOnlyOnTab)
+    #IF(%PTSConditional)
+    IF %PTSDCondition
+    #ENDIF
+     #IF(%PTSFocus)
+     IF %PTSSheetControl{prop:choicefeq}=%PTSActiveTab AND r:Field=%PTSFocusControl
+     #ELSE
+     IF %PTSSheetControl{prop:choicefeq}=%PTSActiveTab
+     #ENDIF
+        #IF(%PTSAlternate)
+        IF %PTSButtonToPress{prop:hide}=false and %PTSButtonToPress{prop:disable}=false
+          Post(Event:Accepted,%PTSButtonToPress)
+        ELSE
+          Post(Event:Accepted,%PTSAlternateButton)
+        .
+        #ELSE
+        IF %PTSButtonToPress{prop:hide}=false and %PTSButtonToPress{prop:disable}=false
+           Post(Event:Accepted,%PTSButtonToPress)
+        END
+        #ENDIF
+        WasAlertHandled = TRUE
+        #EMBED(%TSBeforeExitOfPushAlternateButton,'TS-Before Exit Of "Push Alternate Button"')
+        Exit
+     End
+    #IF(%PTSConditional)
+    END
+    #ENDIF
+    #ELSE
+    #IF(%PTSConditional)
+    IF %PTSDCondition
+    #ENDIF
+     #IF(%PTSFocus)
+     IF r:Field=%PTSFocusControl
+     #ENDIF
+     #IF(%PTSAlternate)
+     IF %PTSButtonToPress{prop:hide}=false and %PTSButtonToPress{prop:disable}=false
+        Post(Event:Accepted,%PTSButtonToPress)
+     ELSE
+        Post(Event:Accepted,%PTSAlternateButton)
+     END
+     #ELSE
+     IF %PTSButtonToPress{prop:hide}=false and %PTSButtonToPress{prop:disable}=false
+        Post(Event:Accepted,%PTSButtonToPress)
+        WasAlertHandled = TRUE
+        #EMBED(%TSBeforeExitOfPushAButton,'TS-Before Exit Of "Push A Button"')
+        Exit
+     END
+     #ENDIF
+     #IF(%PTSFocus)
+     END
+     #ENDIF
+    #IF(%PTSConditional)
+    END
+    #ENDIF
+    #ENDIF
+  #ENDIF
+  #IF(%PTSWhenPressed='Select A Tab')
+   #IF(%PTSConditional)
+   IF %PTSDCondition
+   #ENDIF
+     %PTSTabSheet{prop:choicefeq}=%PTSTabToSelect
+     Select(%PTSControlToSelect)
+     post(EVENT:NewSelection,%PTSTabSheet)
+     WasAlertHandled = TRUE
+     Exit
+   #IF(%PTSConditional)
+   END
+   #ENDIF
+  #ENDIF
+  #IF(%PTSWhenPressed='Execute Code')
+
+     #IF(%PTSOnlyOnTab2)
+     IF %PTSSheetControl2{prop:choicefeq}=%PTSActiveTab2
+      #IF(%PTSConditional)
+      IF %PTSDCondition
+      #ENDIF
+       %PTSCode
+       WasAlertHandled = TRUE
+      #IF(%PTSConditional)
+       Exit
+      End       !End Condition
+      #ELSE
+       Exit
+      #ENDIF
+     End
+     #ELSE
+       #IF(%PTSConditional)
+      IF %PTSDCondition
+       #ENDIF
+       #IF(%PTSFocus2)
+       IF r:Field=%PTSFocusControl2
+       #ENDIF
+         %PTSCode
+       #IF(%PTSFocus2)
+       END
+       #ENDIF
+       WasAlertHandled = TRUE
+       #IF(%PTSConditional)
+       Exit
+      End       !End Condition
+       #ELSE
+     ! Exit
+       #ENDIF
+     #ENDIF
+
+  #ENDIF
+  End       !EndIf
+  #ENDFOR
+  RETURN WasAlertHandled
+
+#!*****************************************************************************
+#GROUP(%HandleSelectOnListLocalProc)
+
+PTS::Alerts.HandleSelectOnList PROCEDURE !,BOOL
+  CODE
+  IF Event()=EVENT:PreAlertKey
+        #IF(%TSEnterSelectsOnListOnSelectRecord)
+          #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+    If Keycode()=Enterkey and OriginalRequest=SelectRecord and SELF.IsSelected
+          #ELSE
+    If Keycode()=Enterkey and Self.Request=SelectRecord and SELF.IsSelected
+          #ENDIF
+        #ELSE
+    If Keycode()=Enterkey and SELF.IsSelected
+        #ENDIF
+       POST(Event:Accepted, %TSEnterSelectsOnListButtonControl)
+       SELF.IsDisabled = TRUE
+       RETURN TRUE
+    END
+  END
+  IF Event() = EVENT:Selected
+    SELF.IsSelected = CHOOSE(Selected()=%TSEnterSelectsOnListListControl)
+  END
+  RETURN FALSE
+
+#!*****************************************************************************

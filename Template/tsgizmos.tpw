@@ -1,0 +1,2720 @@
+#!TimeSaver Gizmos
+#!(c) Copyright 1996, POSitive Software Company, All Rights Reserved
+#!Version 1.0, Released 11/11/96
+#!
+#!Version 1.1  Released 12/01/96
+#!Added One Lookup-Many Fields to have File and Printer Lookups
+#!Fixed bug in Edit-In-Place Template
+#!Added Cancel Button to Validate Field Template
+#!Added Drop-Down List Template
+#!Added Set Window Text Template
+#!
+#!Version 1.2  Released 1-31-97
+#!Enhanced Drop-Down List Template
+#!
+#!Version 1.3  Released 9-18-97
+#!Added Embed to In-Line update
+#!Fixed bug in allowing multiple fields to always validate
+#!Moved Always Validate event to top of loop
+#!Enhanced Drop-Down List Template Again!
+#!Added Extension to allow files NOT to be opened in a Procedure
+#!Corrected BRW assignment in In-Place edit Template
+#!Added Top/Bottom/Left/Right borders to Sliding list boxes
+#!Enhanced One-Lookup to support multiple lookups on one window
+#!Fixed bug in One-Lookup, so did not update field when RequestCancelled
+#!Added ability to enter a created control in sliding list boxes
+#!Added Code Template to add a Label to Source Code
+#!Added Alert Key Helper
+#!
+#!Version 1.4  Released 2-5-98
+#!Adjusted Alert Key Manager to only Alert keys when on certain tabs
+#!Added Enter Selects Record to Alert Key (cannot use Alert and Enter Selects together)
+#!Allowed Alert Key Manager to handle Alternate Button (for Select/Close button combo)
+#!Moved Alert Key handling to procedure
+#!Revised Sliding List boxes to include only Regions when selecting Regions
+#!
+#!Version 2.0  Released 4-7-98
+#!Converted to be compatible with ABC Templates
+#!
+#!Version 2.0a Released 4-12-98
+#!Fixed problem with ABC Templates and Enter Selects From List
+#!
+#!Version 2.0b Released 4-22-98
+#!Added ability to store Build numbers in a Variable
+#!Fixed bug in Enter Selects Record Template
+#!Fixed bug in Never Open Files template
+#!
+#!Version 2.1 Released 11-15-98
+#! Added GetIni and PutIni Templates
+#! Fixed bug in In-Place editing (added UPDATE command)
+#! Adjusted version checking for C5
+#!
+#!Version 2.2 Released 2-20-99
+#! Fixed Numberstowords to work with CPCS in ABC in C5
+#! Enhanced Dropcombo template
+#! Allowed Conditional adding of choices into a Queue in Dropcombo Template
+#! Added support for Sliding Controls
+#!
+#!Version 2.3
+#! Tweaked In-Place Editing to support Regions
+#! Tweaked In-Place editing to not write file if data not changed
+#!
+#HELP('TSGIZMOS.HLP')
+#!
+#EXTENSION(TSGizmosGlobalSettings,'TS Gizmos Global Settings'),APPLICATION
+#SHEET
+#TAB('TimeSaver Gizmos 2.2'),HLP('Using The Global Extension Template')
+#IMAGE('TSGIZMOS.BMP')
+#BOXED(''),AT(,95,,)
+#DISPLAY('TimeSaver Gizmos is chock-full of nifty Templates!')
+#DISPLAY('')
+#PROMPT('EVENT:PTS Equate: ',@N_7),%PTSEvent,DEFAULT(2000)
+#PROMPT('Use Separate INI File',CHECK),%TSUseGizmoINI
+#BOXED, WHERE(%TSUseGizmoINI)
+#PROMPT('Gizmo INI File:',@s30),%TSGizmoINI
+#DISPLAY('Use an Exclamation Point (!) if using a Variable.')
+#ENDBOXED
+#PROMPT('Track Build Numbers',CHECK),%TSTrackBuilds
+#BOXED, WHERE(%TSTrackBuilds)
+#PROMPT('Version:',@s10),%TSVersion
+#PROMPT('Version Global Variable:',@S30),%TSVersionVar
+#PROMPT('Current Build Number:',@n_3),%TSBuild,DEFAULT('1')
+#PROMPT('Build Global Variable:',@S30),%TSBuildVar
+#PROMPT('Fix Build Number',CHECK),%TSFixBuild
+#DISPLAY('Build Numbers are incremented every time you Generate')
+#DISPLAY('new Source Code.')
+#ENDBOXED
+#ENDBOXED
+#ENDTAB
+#ENDSHEET
+
+#ATSTART
+  #DECLARE(%TSGizmoINI2)
+  #IF(SUB(%TSGizmoINI,1,1)='!')
+  #SET(%TSGizmoINI2,'''' & ' & ' & SUB(%TSGizmoINI,2,30) & ' & ' & '''')
+  #ELSE
+  #SET(%TSGizmoINI2,%TSGizmoINI)
+  #ENDIF
+  #DECLARE (%TempBuildFile)
+  #DECLARE (%TempBuild)
+  #SET(%TempBuildFile,CLIP(SUB(%Application,1,5)) & '_VB.CLW')
+  #SET(%TempBuild,SUB(%Application,1,4) & '_VB')
+#ENDAT
+
+#AT(%ProgramSetup)
+ #IF(%TSTrackBuilds)
+  #IF(~%TSFixBuild)
+   #SET(%TSBuild,%TSBuild+1)
+  #ENDIF
+ #ENDIF
+#ENDAT
+
+#AT(%CustomGlobalDeclarations)
+#IF (%TSTrackBuilds)
+#PROJECT(%TempBuildFile)
+#ENDIF
+#ENDAT
+
+#AT(%GlobalData)
+EVENT:PTS       EQUATE(%PTSEvent)
+#ENDAT
+
+#AT(%GlobalMap)
+#IF (%TSTrackBuilds)
+   MODULE('%TempBuildFile')
+     %TempBuild
+   END
+#ENDIF
+#ENDAT
+
+#AT(%ProgramSetup)
+#IF (%TSTrackBuilds)
+   %TempBuild
+#ENDIF
+#ENDAT
+
+#AT (%ProgramEnd)
+#IF (%TSTrackBuilds)
+#CREATE (%TempBuildFile)
+#MESSAGE ('Writing Version/Build Routine', 1)
+   MEMBER('%Application')
+%TempBuild    Procedure
+   CODE
+#IF(%TSBuildVar<>'')
+  %TSBuildVar=%TSBuild
+#ENDIF
+#IF(%TSVersionVar<>'')
+  %TSVersionVar=%TSVersion
+#ENDIF
+#CLOSE (%TempBuildFile)
+#ENDIF
+#ENDAT
+#!===============================================================
+#EXTENSION(DoNotRegenSource,'Do Not Regenerate Source For This Procedure'),PROCEDURE,HLP('Miscellaneous Utilities')
+#DISPLAY('This Extension will prevent the source code for this entire')
+#DISPLAY('Module from being re-generated.')
+
+#ATEND
+  #CLOSE(%BuildFile)
+  #REPLACE(%BuildFile,%Module)
+  #OPEN(%BuildFile)
+#ENDAT
+!#---------------------------------------------------------------------------
+#EXTENSION(TSInPlaceEdit,'TimeSavers In-Place Editing'),MULTI,PROCEDURE,HLP('In-Place Editing')
+#SHEET
+#TAB('Files')
+#PROMPT('List Box Control:',FROM(%CONTROL,%ControlType='LIST')),%TSListBoxControl
+#PROMPT('Powerbrowse Control',CHECK),%TSPBrowseControl
+#PROMPT('Queue Only',CHECK),%TSQOnly
+#BOXED('Files To Save')
+#BUTTON('Files To Save'),MULTI(%TSInPlaceFiles,%TSFilesToSave),AT(,,,60),INLINE
+#PROMPT('Files To Edit:',FILE),%TSFilesToSave
+#ENDBUTTON
+#ENDBOXED
+#PROMPT('Set Fields to ReadOnly',CHECK),%TSColorIt
+#PROMPT('Edit Fields Always Active',CHECK),%TSEditAlways,AT(10)
+#ENABLE(~%TSEditAlways)
+#PROMPT('Support INSERTing Records',CHECK),%TSEditInsert,AT(10)
+#ENDENABLE
+#PROMPT('Check If Record Changed Before Writing',CHECK),%TSCheckBefore,DEFAULT(1),AT(10)
+#PROMPT('Enabled Font Color',@S20),%EnabledFontColor,DEFAULT('Color:None')
+#PROMPT('Enabled Background Color',@S20),%EnabledBackgroundColor,DEFAULT('Color:None')
+#PROMPT('Disabled Font Color',@S20),%DisabledFontColor,DEFAULT('Color:None')
+#PROMPT('Disabled Background Color',@S20),%DisabledBackgroundColor,DEFAULT('Color:BtnFace')
+#ENDTAB
+#TAB('Fields')
+#BOXED('Fields To Exclude')
+#DISPLAY('All Entry, Check, Radio, & Spin Fields will be edit')
+#DISPLAY('fields EXCEPT those listed below.')
+#BUTTON('Fields To Exclude'),MULTI(%TSFieldsToExclude,%TSFieldsToEdit),AT(,,,80),INLINE
+#PROMPT('Fields To Edit:',CONTROL),%TSFieldsToEdit
+#ENDBUTTON
+#ENDBOXED
+#BOXED('Fields To Include')
+#DISPLAY('You may want to explicitly include some controls, such')
+#DISPLAY('as Lookup Buttons.')
+#BUTTON('Fields To Include'),MULTI(%TSControlsToInclude,%TSControlsToEdit),AT(,,,80),INLINE
+#PROMPT('Fields To Edit:',CONTROL),%TSControlsToEdit
+#PROMPT('Do Not Disable',CHECK),%TSDoNotDisable
+#ENDBUTTON
+#ENDBOXED
+  #PROMPT('Fields On Tabs',CHECK),%TSUseSheet
+  #BOXED('Sheet Control'),WHERE(%TSUseSheet)
+  #PROMPT('Sheet Control:',FROM(%CONTROL,%ControlType='SHEET')),%TSSheetControl
+  #ENDBOXED
+#ENDTAB
+#TAB('Buttons'), WHERE(~%TSEditAlways)
+#PROMPT('Edit/Save Button Control:',FROM(%CONTROL,%ControlType='BUTTON')),%TSEditButton
+ #BOXED ('When Edit Button')
+  #PROMPT ('Button Prompt:', @S20), %TSEButton, DEFAULT('&Edit')
+  #PROMPT ('Icon:',@S20), %TSEICON
+  #PROMPT('Justification:',DROP('Default|Left|Center|Right')),%EButtonJustification,DEFAULT('Default')
+ #ENDBOXED
+ #BOXED ('When Save Button')
+  #PROMPT ('Button Prompt:', @S20), %TSSButton, DEFAULT('&Save')
+  #PROMPT ('Icon:',@S20), %TSSICON
+  #PROMPT('Justification:',DROP('Default|Left|Center|Right')),%SButtonJustification,DEFAULT('Default')
+ #ENDBOXED
+#ENDTAB
+#TAB('Insert Config'), WHERE(%TSEditInsert)
+#PROMPT('Insert Button',FROM(%CONTROL,%ControlType='BUTTON')),%TSInsertButton
+#PROMPT('Change Button',FROM(%CONTROL,%ControlType='BUTTON')),%TSChangeButton
+#PROMPT('Delete Button',FROM(%CONTROL,%ControlType='BUTTON')),%TSDeleteButton
+#PROMPT('Icon for "Delete":',@S20),%TSIconDelete
+#PROMPT('Text for "Delete":',@S20),%TSDButton,DEFAULT('Delete')
+#PROMPT('Icon for "Cancel":',@S20),%TSIconCancel
+#PROMPT('Field To Select',FROM(%CONTROL,%ControlType='ENTRY')),%TSFieldToSelect
+#BOXED('')
+#DISPLAY('When inserting, you can disable additional controls')
+#BUTTON('Fields To Disable'),MULTI(%TSControlsToDisable,%TSControlToDisable),AT(,,,80),INLINE
+#PROMPT('Field To Disable:',CONTROL),%TSControlToDisable
+#ENDBUTTON
+#ENDBOXED
+#BOXED('')
+#DISPLAY('A "Save" button should be placed')
+#DISPLAY('somewhere in the window.')
+#PROMPT('Save Button:',FROM(%CONTROL,%ControlType='BUTTON')),%TSSaveButton,REQ
+#ENDBOXED
+#PROMPT('Locator Field:',FROM(%CONTROL,%ControlType='ENTRY')),%TSLocatorControl
+#PROMPT('Link with ViewWizard',CHECK),%TSVWLink,AT(10) 
+#PROMPT('ViewWizard Instance:',@N3),%TSVWInstance
+#ENDTAB
+#TAB('Field Selection'),WHERE(%TSUseSheet or ~%TSEditAlways)
+ #BOXED('Fields To Select'),WHERE(%TSUseSheet)
+ #DISPLAY('NOTE: The TABS in this list MUST be in the same')
+ #DISPLAY('order as they are in your Window.')
+ #DISPLAY('')
+ #BUTTON('Fields To Select'),MULTI(%TSFieldsToSelect,%TSTabs),AT(,,,60),INLINE
+ #PROMPT('When Tab Is Selected:',FROM(%CONTROL,%ControlType='TAB')),%TSTabs
+ #PROMPT('Select This Field',CONTROL),%TSSelectTabField
+ #PROMPT('Do NOT Edit Fields on this Tab',CHECK),%TSDoNotEdit,AT(10)
+ #ENDBUTTON
+ #ENDBOXED
+ #BOXED('Field To Select'),WHERE(~%TSUseSheet)
+ #PROMPT('Field To Select',CONTROL),%TSFieldToSelect
+ #ENDBOXED
+#ENDTAB
+#ENDSHEET
+
+#ATSTART
+#DECLARE(%TSIPFields),MULTI,UNIQUE
+#DECLARE(%TSIPEditFields),MULTI,UNIQUE
+#DECLARE(%TSSkip)
+#DECLARE(%InstancePrefix)
+#DECLARE(%InstancePrefix2)
+#DECLARE(%ListCount)
+#DECLARE(%Temp)
+#DECLARE(%ListInstance)
+#DECLARE(%SkipDisableCode)
+#FOR(%Control),WHERE(%ControlType='LIST')
+#SET(%InstancePrefix,'BRW' & %ControlInstance & ':')
+#SET(%InstancePrefix2,'BRW' & %ControlInstance)
+ #IF(%Control=%TSListBoxControl)
+ #SET(%ListInstance,%ControlInstance)
+ #BREAK
+ #ENDIF
+#ENDFOR
+#DECLARE(%TSNotOnTab),MULTI,UNIQUE
+#DECLARE(%TSParent)
+#FOR(%Control)
+  #SET(%TSParent,%ControlParent)
+  #FOR(%TSFieldsToSelect)
+     #IF(%TSTabs = %TSParent AND %TSDoNotEdit)
+         #ADD(%TSNotOnTab,%Control)
+     #ENDIF
+  #ENDFOR
+#ENDFOR
+#ENDAT
+
+#AT (%DataSectionBeforeWindow)
+                                      MAP
+AssignTheInPlaceField:%ActiveTemplateInstance                 PROCEDURE(STRING pFeq)
+                                      END
+
+%InstancePrefix:TS::EditRequest:%ActiveTemplateInstance      BYTE(0)
+%InstancePrefix:TS::Editing:%ActiveTemplateInstance          BYTE(0)
+%InstancePrefix:TS::EditButton:%ActiveTemplateInstance       BYTE(0)
+%InstancePrefix:TS::TAB:%ActiveTemplateInstance              BYTE(1)
+%InstancePrefix:TS::CHANGED:%ActiveTemplateInstance          BYTE(0)
+%InstancePrefix:EForce:%ActiveTemplateInstance               BYTE(0)
+%InstancePrefix:TS::EditingInsert:%ActiveTemplateInstance    BYTE(0)
+%InstancePrefix:TS::q           Queue
+%InstancePrefix:TS::qFEQ      LONG
+%InstancePrefix:TS::qLow      Decimal(14,4)
+%InstancePrefix:TS::qHigh     Decimal(14,4)
+%InstancePrefix:TS::qHide     BYTE(0)
+%InstancePrefix:TS::qDisable  BYTE(0)
+%InstancePrefix:TS::qFormat   String(10)
+%InstancePrefix:TS::qXPos     LONG
+%InstancePrefix:TS::qYPos     LONG
+                                END
+
+%InstancePrefix:NewControl   LONG
+%InstancePrefix:OldControl   LONG
+%InstancePrefix:IsDisabled   BYTE(0)
+#IF(%TSEditInsert)
+TS::SkipAdd:%ActiveTemplateInstance   BYTE(0)
+#ENDIF
+#IF(%TSCheckBefore)
+#FOR(%TSInPlaceFiles)
+#FIX(%File,%TSFilesToSave)
+TS::%FilePrefix:Record:%ActiveTemplateInstance           LIKE(%FilePrefix:Record)
+#ENDFOR
+#ENDIF
+#ENDAT
+
+#AT(%WindowInitializationCode),Priority(5000),DESCRIPTION('TS In-Place Editing')
+#IF(%TSEditInsert)
+IF GlobalRequest = ChangeRecord
+   %InstancePrefix:TS::EditRequest:%ActiveTemplateInstance = 1
+   GlobalRequest = SelectRecord
+END
+#ENDIF
+#ENDAT
+
+#AT(%WindowEventHandling,'CloseWindow'),PRIORITY(5000),DESCRIPTION('TS In-Place Editing')
+#IF(%TSEditInsert)
+IF %InstancePrefix:TS::Editing:%ActiveTemplateInstance
+  %InstancePrefix:TS::Editing:%ActiveTemplateInstance = 0
+  !Insert DELETE Code here, or call DELETE Routine
+  #EMBED(%TSInPlaceCloseWindow,'TS-InPlace Close Window'),%Control,WHERE(%ControlType='LIST')
+  Do %InstancePrefix:TS::DisableInPlaceFields
+END
+IF %InstancePrefix:TS::EditRequest:%ActiveTemplateInstance 
+  LocalResponse = RequestCancelled
+  DO ProcedureReturn
+END
+#ENDIF
+#ENDAT
+
+#AT(%AfterWindowOpening),PRIORITY(100),DESCRIPTION('TS In-Place Editing')
+#IF(%TSEditInsert)
+%TSChangeButton{PROP:Hide} = True
+%TSEditButton{Prop:XPos} = %TSChangeButton{PROP:XPos}
+%TSEditButton{Prop:YPos} = %TSChangeButton{PROP:YPos}
+%TSEditButton{Prop:Width} = %TSChangeButton{PROP:Width}
+%TSEditButton{Prop:Height} = %TSChangeButton{PROP:Height}
+#ENDIF
+#ENDAT
+
+#AT(%BeforeAccept),DESCRIPTION('TS In-Place Editing')
+%InstancePrefix:TS::EditButton:%ActiveTemplateInstance=0
+%InstancePrefix:TS::TAB:%ActiveTemplateInstance=1
+#IF (~%TSEditAlways)
+%TSEditButton{Prop:Text}='%TSEButton'
+%TSEditButton{Prop:Icon}='%TSEIcon'
+%TSEditButton{prop:%EButtonJustification}=1
+Do %InstancePrefix:TS::DisableInPlaceFields
+#ENDIF
+#IF(%TSUseSheet)
+TS::Tab#=1
+TS::CHANGED#=0
+#ENDIF
+#ENDAT
+
+#AT(%WindowEventHandling,'OpenWindow'),PRIORITY(8000),DESCRIPTION('TS In-Place Editing')
+#IF(%TSEditInsert)
+IF %InstancePrefix:TS::EditRequest:%ActiveTemplateInstance
+   POST(Event:Accepted,%TSEditButton)
+END
+#ENDIF
+#ENDAT
+
+#AT(%AcceptLoopBeforeEventHandling),DESCRIPTION('TS In-Place Editing')
+#IF(%TSEditInsert)
+IF (Event() = Event:CloseWindow) AND %InstancePrefix:TS::EditButton:%ActiveTemplateInstance=1
+#ELSE
+IF (EVENT() = Event:LoseFocus OR Event() = Event:CloseWindow) AND %InstancePrefix:TS::EditButton:%ActiveTemplateInstance=1
+#ENDIF
+   %InstancePrefix:EForce:%ActiveTemplateInstance=1
+End
+DO %InstancePrefix:TS::CheckInPlace
+#ENDAT
+
+#AT (%ControlEventHandling, %TSLocatorControl, 'Accepted'),PRIORITY(1),DESCRIPTION('TS In-Place Editing')
+#IF(%TSEditInsert)
+IF %InstancePrefix:TS::Editing:%ActiveTemplateInstance
+   CYCLE
+END   
+#ENDIF
+#ENDAT
+
+#AT (%ControlEventHandling, %TSDeleteButton, 'Selected'),PRIORITY(1),DESCRIPTION('TS In-Place Editing')
+#IF(%TSEditInsert)
+IF %InstancePrefix:TS::Editing:%ActiveTemplateInstance
+   TS::SkipAdd:%ActiveTemplateInstance = True
+END
+#ENDIF
+#ENDAT
+#AT (%ControlEventHandling, %TSDeleteButton, 'Accepted'),PRIORITY(1),DESCRIPTION('TS In-Place Editing')
+#IF(%TSEditInsert)
+IF %InstancePrefix:TS::Editing:%ActiveTemplateInstance
+   IF %InstancePrefix:TS::Editing:%ActiveTemplateInstance = 2
+     LocalResponse = RequestCancelled
+     DO CancelAutoIncrement
+   #EMBED(%TSInPlaceDeleteButtonDeleteCode,'TS-Delete Button Complete Delete Code'),%Control,WHERE(%ControlType='LIST')
+   END
+   %InstancePrefix:TS::Editing:%ActiveTemplateInstance = 0
+   Do %InstancePrefix:TS::DisableInPlaceFields
+   %TSListBoxControl{PROP:Disable} = False
+   %TSEditButton{Prop:Text}='%TSEButton'
+   %TSEditButton{Prop:Icon}='%TSEIcon'
+   %TSEditButton{prop:%EButtonJustification}=1
+   %TSInsertButton{PROP:Hide} = False
+  ! %TSChangeButton{PROP:Hide} = False
+   %TSDeleteButton{PROP:Text} = '%TSDButton'
+   %TSDeleteButton{PROP:Icon} = '%TSIconDelete'
+   %TSDeleteButton{PROP:Disable} = False
+   DO %InstancePrefix:TS::EnableInsertFields
+   IF %InstancePrefix:TS::EditRequest:%ActiveTemplateInstance 
+     LocalResponse = RequestCancelled
+     DO ProcedureReturn
+   END
+   DO %InstancePrefix:Reset
+   Select(%TSListBoxControl)
+   POST(Event:NewSelection,%TSListBoxControl)
+   LocalRequest = OriginalRequest
+   LocalResponse = RequestCancelled
+   DO RefreshWindow
+   #EMBED(%TSInPlaceDeleteButtonCompleteAfterPost,'TS-Delete Button Complete After Post NewSelection'),%Control,WHERE(%ControlType='LIST')
+   CYCLE
+END
+#ENDIF
+#ENDAT
+
+#AT(%StartFillBufferRoutine)
+#IF(%ControlInstance = %ListInstance)
+! ControlInstance: %ControlInstance Instance(%EmbedID)  Parm: %EmbedParameters
+! TemplateInstance" %ActiveTemplateInstance   %ActiveTemplateInstanceDescription
+#EMBED(%TSStartFillBufferRoutine,'TS-Start of Fill Buffer ROUTINE'),%ControlInstance 
+#ENDIF
+#ENDAT
+
+#AT (%ControlEventHandling, %TSInsertButton, 'Accepted'),DESCRIPTION('TS In-Place Editing'),PRIORITY(1)
+#IF(%TSEditInsert)
+DO PrimeFields
+!%InstancePrefix:TS::Editing:%ActiveTemplateInstance = 2
+%InstancePrefix:TS::EditingInsert:%ActiveTemplateInstance = 1
+POST(Event:Accepted,%TSEditButton)
+#EMBED(%TSInPlaceInsertButtonAfterInsert,'TS-Insert Button After Insert'),%Control,WHERE(%ControlType='LIST')
+CYCLE
+#ENDIF
+#ENDAT
+
+#AT (%ControlPreEventHandling, %TSEditButton, 'Accepted'),PRIORITY(1),DESCRIPTION('TS In-Place Editing')
+#IF(%TSEditInsert)
+#FIX(%File,%TSFilesToSave)
+IF %InstancePrefix:TS::Editing:%ActiveTemplateInstance 
+   #EMBED(%TSInPlaceEditButtonCompleteBeforeSave,'TS-Edit Button Complete Before Save'),%Control,WHERE(%ControlType='LIST')
+   %InstancePrefix:TS::EditButton:%ActiveTemplateInstance=1
+   Do %InstancePrefix:TS::SaveRecord
+   %InstancePrefix:TS::EditButton:%ActiveTemplateInstance=0
+   %InstancePrefix:TS::EditingInsert:%ActiveTemplateInstance = 0
+   #EMBED(%TSInPlaceEditButtonCompleteAfterSave,'TS-Edit Button Complete After Save'),%Control,WHERE(%ControlType='LIST')
+   Do %InstancePrefix:TS::DisableInPlaceFields
+   %TSListBoxControl{PROP:Disable} = False
+   %TSEditButton{Prop:Text}='%TSEButton'
+   %TSEditButton{Prop:Icon}='%TSEIcon'
+   %TSEditButton{prop:%EButtonJustification}=1
+   %TSInsertButton{PROP:Hide} = False
+  ! %TSChangeButton{PROP:Hide} = False
+   %TSDeleteButton{PROP:Hide} = False
+   %TSDeleteButton{PROP:Text} = '%TSDButton'
+   %TSDeleteButton{PROP:Icon} = '%TSIconDelete'
+   DO %InstancePrefix:TS::EnableInsertFields
+   %InstancePrefix:TS::Editing:%ActiveTemplateInstance = 0
+   IF %InstancePrefix:TS::EditRequest:%ActiveTemplateInstance 
+        LocalResponse = RequestCancelled
+        DO ProcedureReturn
+   END
+   !Add retrieve current record code for list box here
+   #EMBED(%TSInPlaceEditButtonCompleteBeforePost,'TS-Edit Button Complete Before Post NewSelection'),%Control,WHERE(%ControlType='LIST')
+   #IF(%TSVWLink)
+   SET(%InstancePrefix:View:Browse,1)
+   IF vwSortOrder:%TSVWInstance[1] = '-'
+         PREVIOUS(%InstancePrefix:View:Browse)
+   ELSE
+         NEXT(%InstancePrefix:View:Browse)
+   END
+   IF ERRORCODE()
+         %InstancePrefix:LocateMode = LocateOnValue
+         DO %InstancePrefix:LocateRecord
+   ELSE
+         %InstancePrefix:RefreshMode = RefreshOnPosition
+         DO %InstancePrefix:RefreshPage
+   END
+   #ENDIF
+   Select(%TSListBoxControl)
+   POST(Event:NewSelection,%TSListBoxControl)
+   LocalRequest = OriginalRequest
+   LocalResponse = RequestCancelled
+!   DO RefreshWindow
+   #EMBED(%TSInPlaceEditButtonCompleteAfterPost,'TS-Edit Button Complete After Post NewSelection'),%Control,WHERE(%ControlType='LIST')
+   CYCLE
+ELSE
+   #EMBED(%TSInPlaceEditButtonBeginBeforeSetup,'TS-Edit Button Begin Before Setup'),%Control,WHERE(%ControlType='LIST')
+   Do %InstancePrefix:TS::EnableInPlaceFields
+   %TSListBoxControl{PROP:Disable} = True
+   %TSEditButton{Prop:Text}='%TSSButton'
+   %TSEditButton{Prop:Icon}='%TSSIcon'
+   %TSEditButton{prop:%EButtonJustification}=1
+   %TSInsertButton{PROP:Hide} = True
+   %TSChangeButton{PROP:Hide} = True
+   %TSDeleteButton{PROP:Text} = 'Cancel'
+   %TSDeleteButton{PROP:Icon} = '%TSIconCancel'
+   %TSInsertButton{PROP:Disable} = False
+   %TSChangeButton{PROP:Disable} = False
+   %TSDeleteButton{PROP:Disable} = False
+   DO %InstancePrefix:TS::DisableInsertFields
+   #FOR(%TSInPlaceFiles)
+   #FIX(%File,%TSFilesToSave)
+   TS::%FilePrefix:Record:%ActiveTemplateInstance = %FilePrefix:Record
+   #ENDFOR
+   IF %InstancePrefix:TS::EditingInsert:%ActiveTemplateInstance
+     %InstancePrefix:TS::Editing:%ActiveTemplateInstance = 2
+     Update()
+     Display()
+   ELSE
+     %InstancePrefix:TS::Editing:%ActiveTemplateInstance = 1
+   END
+   #EMBED(%TSInPlaceEditButtonBeforeFieldToSelect,'TS-Edit Button Before Field To Select'),%Control,WHERE(%ControlType='LIST')
+   Select(%TSFieldToSelect)
+   #EMBED(%TSInPlaceEditButtonBeginAfterSetup,'TS-Edit Button Begin After Setup'),%Control,WHERE(%ControlType='LIST')
+END
+#ELSE
+ #IF(%TSEditButton AND ~%TSEditAlways)
+  DO %InstancePrefix:TS::EditButton:%ActiveTemplateInstance
+  #ENDIF
+#ENDIF
+CYCLE
+#ENDAT
+
+#AT (%WindowEventHandling, 'DoResize')
+ LOOP tq# = 1 To Records(%InstancePrefix:TS::q)
+     GET(%InstancePrefix:TS::q,tq#)
+     %InstancePrefix:TS::q.%InstancePrefix:TS::qFEQ{PROP:Xpos} = (%InstancePrefix:TS::q.%InstancePrefix:TS::qFEQ-500){PROP:XPos}
+     %InstancePrefix:TS::q.%InstancePrefix:TS::qFEQ{PROP:YPos} = (%InstancePrefix:TS::q.%InstancePrefix:TS::qFEQ-500){PROP:YPos}     
+ END     
+#ENDAT
+#AT (%ControlEventHandling, %TSSheetControl, 'TabChanging'),DESCRIPTION('TS In-Place Editing')
+ #IF(%TSUseSheet)
+ %InstancePrefix:TS::CHANGED:%ActiveTemplateInstance=1
+ #ENDIF
+#ENDAT
+
+#AT (%ControlEventHandling, %TSSheetControl, 'NewSelection'),DESCRIPTION('TS In-Place Editing')
+ #IF(%TSUseSheet)
+ CASE CHOICE()
+ #SET(%ListCount,1)
+ #FOR(%TSFieldsToSelect),WHERE(~%TSDoNotEdit)
+ OF %ListCount
+    Select(%TSSelectTabField)
+    #SET(%ListCount,%ListCount+1)
+ #ENDFOR
+ END
+ #ENDIF
+#ENDAT
+
+#AT(%SyncWindowBeforeLookup),PRIORITY(1),DESCRIPTION('TS In-Place Editing')
+ #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+  IF %InstancePrefix:TS::EditButton:%ActiveTemplateInstance;EXIT.
+ #ELSE
+   IF %InstancePrefix:TS::EditButton:%ActiveTemplateInstance;Return.
+ #ENDIF
+ #IF(%TSEditInsert)
+  #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+   IF %InstancePrefix:TS::Editing:%ActiveTemplateInstance;Exit.
+  #ELSE
+    IF %InstancePrefix:TS::Editing:%ActiveTemplateInstance;Return.
+  #ENDIF
+ #ENDIF 
+#ENDAT
+
+#AT(%RefreshWindowBeforeLookup),DESCRIPTION('TS In-Place Editing')
+ #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+  IF %InstancePrefix:TS::EditButton:%ActiveTemplateInstance;EXIT.
+ #ELSE
+   IF %InstancePrefix:TS::EditButton:%ActiveTemplateInstance;Return.
+ #ENDIF
+ #IF(%TSEditInsert)
+   #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+    IF %InstancePrefix:TS::Editing:%ActiveTemplateInstance;Exit.
+   #ELSE
+     IF %InstancePrefix:TS::Editing:%ActiveTemplateInstance;Return.
+   #ENDIF
+ #ENDIF 
+#ENDAT
+
+#AT(%ProcedureRoutines),DESCRIPTION('TS In-Place Editing')
+  #FOR(%CONTROL)
+   #SET(%TSSkip,0)
+   #IF(%ControlType='ENTRY' OR %ControlType='TEXT' OR %ControlType='SPIN' OR %ControlType='CHECK' OR %ControlType='RADIO' OR %ControlType='OPTION')
+    #FOR(%TSFieldsToExclude)
+      #IF(%CONTROL=%TSFieldsToEdit)
+       #SET(%TSSkip,1)
+       #BREAK
+      #ENDIF
+    #ENDFOR
+    #FOR(%TSNotOnTab)
+        #IF(%CONTROL=%TSNotOnTab)
+          #SET(%TSSkip,1)
+          #BREAK
+        #ENDIF
+    #ENDFOR
+    #IF(%TSSkip=1)
+      #CYCLE
+    #ENDIF
+    #ADD(%TSIPFields,%CONTROL)
+    #ADD(%TSIPEditFields,%CONTROL)
+   #ENDIF
+  #ENDFOR
+  #FOR(%TSControlsToInclude) 
+  #ADD(%TSIPEditFields,%TSControlsToEdit)
+  #IF(%TSDoNotDisable)
+      #CYCLE
+  #ENDIF    
+  #ADD(%TSIPFields,%TSControlsToEdit)  
+  #ENDFOR
+
+#IF (~%TSEditAlways)
+%InstancePrefix:TS::DisableInPlaceFields   Routine
+  #EMBED(%TSInPlaceStartEnableInPlaceFields,'TS-Beginning of DisableInPlaceFields Routine'),%Control,WHERE(%ControlType='LIST')
+!  FREE(%InstancePrefix:TS::q)
+  #FOR(%TSIPFields)
+  #FIX(%Control,%TSIPFields)
+    #IF(%ControlType<>'REGION')
+      #IF(%TSColorIt)
+  IF %TSIPFields{PROP:Type} <> CREATE:Button                 
+!    IF %TSIPFields{PROP:Type} <> CREATE:Check AND %TSIPFields{PROP:Type} <> CREATE:Radio AND %TSIPFields{PROP:Type} <> CREATE:Option
+!       %TSIPFields{PROP:FLAT} =  True
+!    END
+    IF %TSIPFields{PROP:Type} = CREATE:Button OR %TSIPFields{PROP:Type} = CREATE:Check OR %TSIPFields{PROP:Type} = CREATE:Radio OR |
+        %TSIPFields{PROP:Type} = CREATE:Option OR %TSIPFields{PROP:Type} = CREATE:List
+        %TSIPFields{PROP:Disable} = True
+    ELSE
+        %InstancePrefix:OldControl = %TSIPFields        
+        DO %InstancePrefix:TS::SetInPlaceFields
+    END
+  ELSE
+    %TSIPFields{PROP:Disable} = True
+  END  
+  #ELSE
+  %TSIPFields{PROP:Disable} = True
+      #ENDIF
+    #ENDIF
+  #ENDFOR
+  #EMBED(%TSInPlaceEndDisableInPlaceFields,'TS-End of DisableInPlaceFields Routine'),%Control,WHERE(%ControlType='LIST')
+
+#IF (~%TSEditAlways)
+%InstancePrefix:TS::AssignInPlaceFields   Routine
+  #EMBED(%TSInPlaceStartAssignInPlaceFields,'TS-Beginning of AssignInPlaceFields Routine'),%Control,WHERE(%ControlType='LIST')
+  #FOR(%TSIPFields)
+  #FIX(%Control,%TSIPFields)
+    #IF(%ControlType<>'REGION' AND %ControlType<>'BUTTON' AND %ControlType<>'CHECK' AND %ControlType<>'RADIO' AND %ControlType<>'OPTION' AND %ControlType<>'LIST')
+    AssignTheInPlaceField:%ActiveTemplateInstance(%TSIPFields)
+
+    #ENDIF
+  #ENDFOR
+  Display()
+  %InstancePrefix:IsDisabled = 1
+  #EMBED(%TSInPlaceEndAssignInPlaceFields,'TS-End of AssignInPlaceFields Routine'),%Control,WHERE(%ControlType='LIST')
+#ENDIF
+
+%InstancePrefix:TS::SetInPlaceFields   Routine
+
+            %InstancePrefix:NewControl = %InstancePrefix:OldControl + 500
+            Create(%InstancePrefix:NewControl,Create:Text,%InstancePrefix:OldControl{Prop:Parent})
+            %InstancePrefix:NewControl{PROP:FontColor}  =  %DisabledFontColor
+            %InstancePrefix:NewControl{PROP:Background} =  %DisabledBackgroundColor
+            %InstancePrefix:NewControl{PROP:ReadOnly} = True
+            %InstancePrefix:NewControl{PROP:Skip} = True
+            %InstancePrefix:NewControl{PROP:IMM} = True
+            %InstancePrefix:NewControl{PROP:Flat} = True
+            %InstancePrefix:NewControl{PROP:XPos} = %InstancePrefix:OldControl{PROP:XPos}
+            %InstancePrefix:NewControl{PROP:YPos} = %InstancePrefix:OldControl{PROP:YPos}
+            %InstancePrefix:NewControl{PROP:Height} = %InstancePrefix:OldControl{PROP:Height}
+            %InstancePrefix:NewControl{PROP:Width} = %InstancePrefix:OldControl{PROP:Width}
+
+            %InstancePrefix:NewControl{PROP:Hide} = False
+            %InstancePrefix:TS::q.%InstancePrefix:TS::qFEQ = %InstancePrefix:NewControl
+            GET(%InstancePrefix:TS::q,%InstancePrefix:TS::q.%InstancePrefix:TS::qFEQ)
+            IF ERROR()
+               %InstancePrefix:TS::q.%InstancePrefix:TS::qHide = %InstancePrefix:OldControl{PROP:Hide}
+               %InstancePrefix:TS::q.%InstancePrefix:TS::qDisable = %InstancePrefix:OldControl{PROP:Disable}
+               %InstancePrefix:TS::q.%InstancePrefix:TS::qFEQ = %InstancePrefix:NewControl
+               %InstancePrefix:TS::q.%InstancePrefix:TS::qFormat = %InstancePrefix:OldControl{PROP:Text}
+               IF SUB(%InstancePrefix:TS::q.%InstancePrefix:TS::qFormat,1,1) = '@'
+                   %InstancePrefix:TS::q.%InstancePrefix:TS::qFormat =  SUB(%InstancePrefix:TS::q.%InstancePrefix:TS::qFormat,2,20)
+               ELSIF %InstancePrefix:OldControl{PROP:Type} = CREATE:text
+                   %InstancePrefix:TS::q.%InstancePrefix:TS::qFormat = 'S10000' 
+               END    
+               ADD(%InstancePrefix:TS::q,%InstancePrefix:TS::q.%InstancePrefix:TS::qFEQ)
+            ELSE
+               %InstancePrefix:TS::q.%InstancePrefix:TS::qHide = %InstancePrefix:OldControl{PROP:Hide}
+               %InstancePrefix:TS::q.%InstancePrefix:TS::qDisable = %InstancePrefix:OldControl{PROP:Disable}
+               %InstancePrefix:TS::q.%InstancePrefix:TS::qFEQ = %InstancePrefix:NewControl
+               %InstancePrefix:TS::q.%InstancePrefix:TS::qFormat = %InstancePrefix:OldControl{PROP:Text}
+               IF SUB(%InstancePrefix:TS::q.%InstancePrefix:TS::qFormat,1,1) = '@'
+                   %InstancePrefix:TS::q.%InstancePrefix:TS::qFormat =  SUB(%InstancePrefix:TS::q.%InstancePrefix:TS::qFormat,2,20)
+               END
+               PUT(%InstancePrefix:TS::q)
+            END   
+            %InstancePrefix:NewControl{PROP:Hide} = %InstancePrefix:TS::q.%InstancePrefix:TS::qHide
+            %InstancePrefix:NewControl{PROP:Disable} = %InstancePrefix:TS::q.%InstancePrefix:TS::qDisable
+            %InstancePrefix:OldControl{PROP:Hide} = True
+
+
+%InstancePrefix:TS::EnableInPlaceFields   Routine
+  #EMBED(%TSInPlaceStartEnableInPlaceFields,'TS-Beginning of EnableInPlaceFields Routine'),%Control,WHERE(%ControlType='LIST')
+  #FOR(%TSIPFields)
+  #FIX(%Control,%TSIPFields)
+  #IF(%TSColorIt)
+    #IF(%ControlType ='REGION' OR %ControlType='BUTTON' OR %ControlType='CHECK' OR %ControlType='RADIO' OR %ControlType='OPTION' OR %ControlType='LIST')
+    !%ControlType
+    %TSIPFields{PROP:Disable} = False
+    #ELSE
+    ThisField# = %TSIPFields
+    DO %InstancePrefix:TS::SetEnableInPlaceFields
+    #END
+  #ELSE
+    %TSIPFields{PROP:Disable} = False
+  #ENDIF  
+  #ENDFOR
+  %InstancePrefix:IsDisabled = 0
+  #EMBED(%TSInPlaceEndEnableInPlaceFields,'TS-End of EnableInPlaceFields Routine'),%Control,WHERE(%ControlType='LIST')
+#ENDIF
+
+%InstancePrefix:TS::SetEnableInPlaceFields   Routine
+  #EMBED(%TSInPlaceStartSetEnableInPlaceFields,'TS-Beginning of SetEnableInPlaceFields Routine'),%Control,WHERE(%ControlType='LIST')  
+  Destroy(ThisField# + 500)
+  %InstancePrefix:TS::q.%InstancePrefix:TS::qFEQ = ThisField# + 500
+  GET(%InstancePrefix:TS::q,%InstancePrefix:TS::q.%InstancePrefix:TS::qFEQ)
+  IF ~ERROR()
+     ThisField#{PROP:Hide} = %InstancePrefix:TS::q.%InstancePrefix:TS::qHide
+  END
+  
+  
+#IF(%TSEditInsert)
+%InstancePrefix:TS::DisableInsertFields  Routine   
+   #FOR(%TSControlsToDisable)
+      %TSControlToDisable{PROP:Disable} = True
+   #ENDFOR
+
+%InstancePrefix:TS::EnableInsertFields      Routine
+   #FOR(%TSControlsToDisable)
+   %TSControlToDisable{PROP:Disable} = False
+   #ENDFOR
+   
+#ENDIF
+%InstancePrefix:TS::CheckInPlace    Routine
+  #IF(%TSEditInsert)
+  IF %InstancePrefix:TS::Editing:%ActiveTemplateInstance <> 1;Exit.
+  #ENDIF
+  #FIX(%Control,%TSListBoxControl)
+  #EMBED(%TSInPlaceStartCheckInPlaceRoutine,'TS-Beginning of CheckInPlace Routine'),%Control,WHERE(%ControlType='LIST')
+  IF %InstancePrefix:TS::EditButton:%ActiveTemplateInstance=0 AND (|
+ #FOR (%TSIPEditFields)
+  #IF(INSTANCE(%TSIPEditFields)=ITEMS(%TSIPEditFields))
+  SELECTED()=%TSIPEditFields)
+  #ELSE
+  SELECTED()=%TSIPEditFields OR|
+  #ENDIF
+ #ENDFOR
+   #IF(~%TSQOnly AND ~%TSPBrowseControl)
+     #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+   DO %InstancePrefix:GetRecord
+     #ELSE
+   %InstancePrefix2.UpdateBuffer
+   %InstancePrefix2.UpdateViewRecord
+     #ENDIF
+   #ENDIF
+   #IF(%TSCheckBefore)
+   #FOR(%TSInPlaceFiles)
+    #FIX(%File,%TSFilesToSave)
+    TS::%FilePrefix:Record:%ActiveTemplateInstance=%FilePrefix:Record
+   #ENDFOR
+   #ENDIF
+ #IF(~%TSQOnly)
+   #IF(~%TSPBrowseControl)
+      #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+    REGET(%InstancePrefix:View:Browse,%InstancePrefix:Position)
+    CLOSE(%InstancePrefix:View:Browse)
+      #ENDIF
+   #ENDIF
+ #ENDIF
+    %InstancePrefix:TS::EditButton:%ActiveTemplateInstance=1
+    SELECT(?)
+    Exit
+  END
+  #IF (%TSUseSheet)
+  IF %InstancePrefix:TS::CHANGED:%ActiveTemplateInstance
+     %InstancePrefix:TS::CHANGED:%ActiveTemplateInstance=0
+     %InstancePrefix:TS::TAB:%ActiveTemplateInstance=CHOICE()
+  .
+  #ENDIF
+  IF (~%InstancePrefix:TS::EditButton:%ActiveTemplateInstance OR FIELD()=0) AND %InstancePrefix:TS::EditButton:%ActiveTemplateInstance=0
+    Exit
+  .
+#IF (~%TSEditAlways)
+  IF FIELD()=%TSEditButton
+     Exit
+  .
+#ENDIF
+  IF %InstancePrefix:EForce:%ActiveTemplateInstance
+    #IF(~%TSQOnly)
+     Do %InstancePrefix:TS::SaveRecord
+    #ENDIF
+     %InstancePrefix:TS::EditButton:%ActiveTemplateInstance=0
+     %InstancePrefix:EForce:%ActiveTemplateInstance=0
+     EXIT
+  END
+  IF |
+ #IF (%TSUseSheet)
+    FOCUS()<>%TSSheetControl AND|
+ #ENDIF
+ #FOR (%TSIPEditFields)
+  #IF(INSTANCE(%TSIPEditFields)=ITEMS(%TSIPEditFields))
+  #FIX(%Control,%TSIPEditFields)
+  #IF(%ControlType='COMBO')
+    FOCUS()<>%TSIPEditFields AND|
+  #ENDIF
+    FOCUS()<>%TSIPEditFields
+  #ELSE
+    FOCUS()<>%TSIPEditFields AND|
+  #FIX(%Control,%TSIPEditFields)
+  #IF(%ControlType='COMBO')
+    FOCUS()<>%TSIPEditFields AND|
+  #ENDIF
+  #ENDIF
+ #ENDFOR
+    DO %InstancePrefix:TS::SaveRecord
+    EXIT
+  END
+
+%InstancePrefix:TS::SaveRecord    Routine
+  IF %InstancePrefix:TS::EditButton:%ActiveTemplateInstance <> 1;EXIT.
+  #IF(%TSEditInsert)
+  TS::SkipAdd:%ActiveTemplateInstance = False
+  IF TS::SkipAdd:%ActiveTemplateInstance;Exit.
+  #ENDIF
+  #FIX(%Control,%TSListBoxControl)
+  #EMBED(%TSInPlaceEmbedBeforeAdd,'TS-Before Saving In-Place Fields'),%Control,WHERE(%ControlType='LIST')
+  #FOR(%TSInPlaceFiles)
+  #IF(%TSCheckBefore)
+  #FIX(%File,%TSFilesToSave)
+  IF TS::%FilePrefix:Record:%ActiveTemplateInstance<>%FilePrefix:Record
+  #ENDIF
+    UPDATE
+    PUT(%TSFilesToSave)
+  #IF(%TSCheckBefore)
+  .
+  #ENDIF
+  #ENDFOR
+  %InstancePrefix:TS::EditButton:%ActiveTemplateInstance=0
+ #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+  #IF(~%TSQOnly AND ~%TSPBrowseControl)
+  DO %InstancePrefix:Reset
+  %InstancePrefix:LocateMode = LocateOnEdit
+  DO %InstancePrefix:LocateRecord
+  DO RefreshWindow
+  #ENDIF
+ #ELSE
+  open(%InstancePrefix:View:Browse)
+  %InstancePrefix2.resetqueue(reset:queue)
+ #ENDIF
+  #IF (~%TSEditAlways)
+  Do %InstancePrefix:TS::DisableInPlaceFields
+  %TSEditButton{Prop:Text}='%TSEButton'
+  %TSEditButton{Prop:Icon}='%TSEIcon'
+  %TSEditButton{prop:%EButtonJustification}=1
+  Select(%TSListBoxControl)
+  POST(Event:NewSelection,%TSListBoxControl)
+  #ENDIF
+  %InstancePrefix:TS::EditButton:%ActiveTemplateInstance=0
+  %InstancePrefix:EForce:%ActiveTemplateInstance=0
+  #EMBED(%TSInPlaceEmbedAfterSave,'TS-After Saving In-Place Fields'),%Control,WHERE(%ControlType='LIST')
+#IF(%TSEditButton AND ~%TSEditAlways)
+%InstancePrefix:TS::EditButton:%ActiveTemplateInstance    Routine
+  IF %InstancePrefix:TS::EditButton:%ActiveTemplateInstance
+     Do %InstancePrefix:TS::SaveRecord
+     %InstancePrefix:TS::EditButton:%ActiveTemplateInstance=0
+     #IF (~%TSEditAlways)
+     Do %InstancePrefix:TS::DisableInPlaceFields
+     #ENDIF
+  ELSE
+  #IF(~%TSPBrowseControl AND ~%TSQOnly)
+     CLOSE(%InstancePrefix:View:Browse)
+  #ENDIF
+     %InstancePrefix:TS::EditButton:%ActiveTemplateInstance=1
+     #IF (~%TSEditAlways)
+     Do %InstancePrefix:TS::EnableInPlaceFields
+     %TSEditButton{Prop:Text}='%TSSButton'
+     %TSEditButton{Prop:Icon}='%TSSIcon'
+     %TSEditButton{prop:%SButtonJustification}=1
+     #ENDIF
+     #IF(~%TSUseSheet)
+     SELECT(%TSFieldToSelect)
+     #ELSE
+     CASE %TSSheetControl{PROP:Selected}
+     #SET(%TEMP,1)
+     #FOR(%TSFieldsToSelect),WHERE(~%TSDoNotEdit)
+     OF %TEMP
+       SELECT(%TSSelectTabField)
+       #SET(%TEMP,%TEMP+1)
+     #ENDFOR
+     END
+     #ENDIF
+  END
+  %InstancePrefix:TS::EditButton:%ActiveTemplateInstance=0
+  %InstancePrefix:EForce:%ActiveTemplateInstance=0
+#ENDIF
+#ENDAT
+#AT(%LocalProcedures)
+AssignTheInPlaceField:%ActiveTemplateInstance        PROCEDURE(STRING pFeq)
+
+    CODE
+
+    pFeq{PROP:ReadOnly} = False
+    ThisField# = pFeq + 500
+    %InstancePrefix:TS::q.%InstancePrefix:TS::qFEQ = ThisField#
+    GET(%InstancePrefix:TS::q,%InstancePrefix:TS::q.%InstancePrefix:TS::qFEQ)
+    IF ~ERROR() AND %InstancePrefix:TS::q.%InstancePrefix:TS::qFormat <> ''
+       IF pFeq{PROP:Type} = Create:Text
+          ThisField#{PROP:Text} = pFeq{PROP:Use}
+       ELSE
+          ThisField#{PROP:Text} = Format(pFeq{PROP:Use},'@' & %InstancePrefix:TS::q.%InstancePrefix:TS::qFormat)
+       END
+    ELSE
+       ThisField#{PROP:Text} = pFeq{PROP:Use}
+    END
+    ThisField#{PROP:ReadOnly} = True
+#ENDAT
+#!---------------------------------------------------------------------
+#CONTROL(TSSaveButton,'TSPrime Fields For Adding With In-Place Editing'),PRIMARY('Update Record on Disk',NOKEY),DESCRIPTION('Update ' & %Primary & ' record on disk'),WINDOW
+  CONTROLS
+    BUTTON('OK'),USE(?OK),DEFAULT,HIDE,REQ
+  END
+#LOCALDATA
+ActionMessage        CSTRING(40)
+RecordChanged        BYTE,AUTO
+#ENDLOCALDATA
+#CLASS('Prime Fields','Prime Fields of ' & %Primary & ' record at beginning of Insert')
+#BOXED('Save Button Properties'),SECTION
+  #BUTTON('Field Priming on Insert'),MULTI(%PrimingFields,%PrimedField & ' = ' & %PrimedValue),AT(10,12),HLP('~TPLControlSaveButton')
+    #PROMPT('Field to Prime:',FIELD),%PrimedField,REQ
+    #PROMPT('Initial Value:',@S255),%PrimedValue,REQ
+  #ENDBUTTON
+  #PROMPT('Clear GUID (CS Replicate)',CHECK),%TSGuid,DEFAULT(1),AT(10)
+#ENDBOXED
+#AT(%CustomGlobalDeclarations)
+  #INSERT(%StandardGlobalSetup(Clarion))
+#ENDAT
+#ATSTART
+  #INSERT(%FileControlInitialize(Clarion))
+  #DECLARE(%HandledFile),UNIQUE
+  #DECLARE(%InsertAction,%HandledFile)
+  #DECLARE(%FirstHandledValue)
+  #DECLARE(%LastHandledValue)
+  #INSERT(%SaveButtonRecordHandlingGather(Clarion),%Primary)
+  #DECLARE(%AutoIncrementOnAdd)
+  #DECLARE(%ClearValue)
+  #DECLARE(%ElementCount)
+  #DECLARE(%OKControl)
+  #DECLARE(%SavedField),UNIQUE
+  #FOR(%Control),WHERE(%ControlInstance = %ActiveTemplateInstance)
+    #SET(%OKControl,%Control)
+  #ENDFOR
+  #FIX(%File,%Primary)
+    #FOR(%Key),WHERE(%KeyAuto)
+      #SET(%AutoIncrementOnAdd,%True)
+      #BREAK
+    #ENDFOR
+    #IF(%AutoIncrementOnAdd=%False)
+      #IF(EXTRACT(UPPER(%FileUserOptions), UPPER('EmulateAutoNumKey'),1) = '1' OR UPPER(EXTRACT(UPPER(%FileUserOptions), UPPER('EmulateAutoNumKey'),1)) = 'TRUE')
+         #FOR(%Field),WHERE(%FieldType<>'MEMO' AND %FieldType<>'BLOB' AND %FieldType<>'END' AND %FieldType<>'GROUP')
+             #IF((EXTRACT(UPPER(%FieldUserOptions), UPPER('IsIdentity'),1) = '1' OR UPPER(EXTRACT(UPPER(%FieldUserOptions), UPPER('IsIdentity'),1)) = 'TRUE') OR EXTRACT(UPPER(%FieldUserOptions), UPPER('ServerAutoIncColumn'),1) <> '')
+                   #! EmulateAutoNumKey, this will force the FM to auto insert the record and
+                   #! recover the Identity column
+                   #SET(%AutoIncrementOnAdd,%True)
+               #BREAK
+             #ENDIF
+         #ENDFOR
+      #ENDIF
+    #ENDIF
+#ENDAT
+#AT(%ProcedureRoutines)
+CancelAutoIncrement ROUTINE
+  
+    #IF(%AutoIncrementOnAdd)
+      IF LocalResponse = RequestCancelled
+        DELETE(%Primary)
+      END
+    #ENDIF
+  
+#DECLARE(%SetNecessary)
+#SET(%SetNecessary,%False)
+PrimeFields ROUTINE
+
+    #SUSPEND
+    #FIX(%File,%Primary)
+  #INSERT(%SaveButtonRecordHandler(Clarion),'RESET',%Primary)
+    #FOR(%Field),WHERE(%FieldInitial)
+  %Field = %FieldInitial
+    #ENDFOR
+    #FOR(%PrimingFields)
+  %PrimedField = %PrimedValue
+    #ENDFOR
+  #EMBED(%PrimeFields,'Prime record fields on Insert')
+  #INSERT(%SaveButtonRecordHandler(Clarion),'SET',%Primary)
+    #RESUME
+  #IF(%AutoIncrementOnAdd)
+  Auto::Attempts = 0
+  LOOP
+    #FOR(%Key),WHERE(%KeyAuto)
+      #IF(ITEMS(%KeyField)>1)
+        #FOR(%KeyField)
+          #IF(%KeyField=%KeyAuto)
+            #IF(%KeyFieldSequence = 'ASCENDING')
+              #SET(%ClearValue,'1')
+            #ELSE
+              #SET(%Clearvalue,'-1')
+            #ENDIF
+          #ENDIF
+        #ENDFOR
+        #FOR(%KeyField),WHERE(%KeyField <> %KeyAuto)
+    Auto::Save:%KeyField = %KeyField
+        #ENDFOR
+    CLEAR(%KeyAuto,%ClearValue)
+    SET(%Key,%Key)
+        #IF(%ClearValue=1)
+    PREVIOUS(%File)
+        #ELSE
+    NEXT(%File)
+        #ENDIF
+        #FOR(%KeyField)
+          #IF(%KeyField=%KeyAuto)
+            #BREAK
+          #ENDIF
+        #ENDFOR
+    IF ERRORCODE() AND ERRORCODE() <> BadRecErr
+      StandardWarning(Warn:RecordFetchError,'%File')
+      POST(Event:CloseWindow)
+      EXIT
+    END
+        #IF(ITEMS(%KeyField) = 1)
+    IF ERRORCODE()
+        #ELSE
+    IF ERRORCODE() |
+        #ENDIF
+        #FOR(%KeyField),WHERE(%KeyField <> %KeyAuto)
+          #IF(INSTANCE(%KeyField) = ITEMS(%KeyField) - 1)
+    OR Auto::Save:%KeyField <> %KeyField
+          #ELSE
+    OR Auto::Save:%KeyField <> %KeyField |
+          #ENDIF
+        #ENDFOR
+      Auto::Save:%KeyAuto = 1
+    ELSE
+      Auto::Save:%KeyAuto = %KeyAuto + 1
+    END
+      #ELSE
+    SET(%Key)
+        #FOR(%KeyField)
+          #IF(%KeyFieldSequence = 'ASCENDING')
+    PREVIOUS(%File)
+          #ELSE
+    NEXT(%File)
+          #ENDIF
+        #ENDFOR
+    IF ERRORCODE() AND ERRORCODE() <> BadRecErr
+      StandardWarning(Warn:RecordFetchError,'%File')
+      POST(Event:CloseWindow)
+      EXIT
+    END
+    IF ERRORCODE()
+      Auto::Save:%KeyAuto = 1
+    ELSE
+      Auto::Save:%KeyAuto = %KeyAuto + 1
+    END
+      #ENDIF
+    #INSERT(%SaveButtonRecordHandler(Clarion),'RESET',%Primary)
+    %KeyAuto = Auto::Save:%KeyAuto
+    #INSERT(%SaveButtonRecordHandler(Clarion),'SET',%Primary)
+    #ENDFOR
+    #IF(%TSGuid)
+    %FilePrefix:GUID = ''
+    #ENDIF
+    #EMBED(%BeforeAddAutoIncRecord,'Before Adding Auto-Incremented Record') 
+    ADD(%Primary)
+    IF ERRORCODE()
+      Auto::Attempts += 1
+      IF Auto::Attempts = 3
+        IF StandardWarning(Warn:AutoIncError) = Button:Retry
+          Auto::Attempts = 0
+        ELSE
+          LocalResponse = RequestCancelled
+          EXIT
+        END
+      END
+      CYCLE
+    END
+    BREAK
+  END
+  #ENDIF
+#ENDAT
+#AT(%DataSectionBeforeWindow)
+Update::Reloop  BYTE
+Update::Error   BYTE
+  #FOR(%HandledFile)
+#INSERT(%SaveButtonRecordHandler(Clarion),'DECLARE',%HandledFile)
+  #ENDFOR
+  #FIX(%File,%Primary)
+  #IF(%AutoIncrementOnAdd)
+Auto::Attempts       LONG,AUTO
+    #FOR(%Key),WHERE(%KeyAuto)
+      #FOR(%KeyField)
+        #FIX(%SavedField,%KeyField)
+        #IF(%SavedField <> %KeyField)
+          #ADD(%SavedField,%KeyField)
+          #FIX(%Field,%KeyField)
+          #IF(%FieldType='GROUP')
+Auto::Save:%[12]Field LIKE(%Field),PRE(SV)
+          #ELSE
+Auto::Save:%[12]Field LIKE(%Field)
+          #ENDIF
+        #ENDIF
+      #ENDFOR
+    #ENDFOR
+  #ENDIF
+#ENDAT
+#!---------------------------------------------------------------------
+#EXTENSION(SizeWindowBasedOnCondition, 'Size Window Based On Condition'),PROCEDURE,HLP('Size Window Based On Condition')
+
+#BOXED ('Window Information')
+  #DISPLAY('Use A Hidden Box Control To Set')
+  #DISPLAY('The Smallest Size Of Your Window')
+  #PROMPT('Size-Setting Control:',FROM(%CONTROL,%ControlType='BOX')),%TSCWinSize
+  #DISPLAY('When the Condition below is met, the Window will')
+  #DISPLAY('be the size of the Hidden Box Control')
+  #PROMPT('Condition:',@S120), %TSCondition
+  #PROMPT('Always Center Window',CHECK),%TSCWinCentered
+  #DISPLAY('Fields To Skip When Window Is Smallest')
+  #BUTTON ('Fields To Skip When Smallest'), MULTI(%TSHide, %TSHideControls), INLINE,AT(,,,60)
+  #PROMPT ('Field To Skip:',CONTROL),%TSHideControls
+  #ENDBUTTON
+#ENDBOXED
+
+#AT (%BeforeAccept)
+ IF %TSCondition
+   %Window{Prop:Height}=%TSCWinSize{prop:height}
+   %Window{Prop:Width}=%TSCWinSize{prop:width}
+   #IF(%TSCWinCentered)
+   %Window{prop:center}=1
+   DO PTS::FieldsToSkip
+   #ENDIF
+ END
+#ENDAT
+#AT(%ProcedureRoutines)
+PTS::FieldsToSkip   Routine
+#FOR(%TSHide)
+   %TSHideControls{PROP:Skip}=TRUE
+#ENDFOR
+#ENDAT
+!#------------------------------------------------------------------------
+#EXTENSION(AlwaysValidateFieldWithLookup,'Always Validate Field With Lookup'),PROCEDURE,HLP('Always Validate Field With Lookup')
+#DISPLAY('This Extension will validate a field, even if')
+#DISPLAY('the field is empty. Enter the Fields you wish')
+#DISPLAY('to validate below.  The setting of a lookup')
+#DISPLAY('button is optional.')
+#BOXED('Fields To Validate')
+#BUTTON('Fields To Validate'),MULTI(%TSValidate,%TSFieldsToValidate),INLINE
+#PROMPT('Field To Validate:',CONTROL),%TSFieldsToValidate
+#PROMPT('Lookup Control Button:',FROM(%CONTROL,%ControlType='BUTTON')),%TSLookupButton
+#ENDBUTTON
+#PROMPT('Cancel Button',FROM(%CONTROL,%ControlType='BUTTON')),%TSCancelButton
+#ENDBOXED
+
+#ATSTART
+  #FOR(%TSValidate)
+  #FIX(%Control,%TSFieldsToValidate)
+  #IF(%ControlType<>'ENTRY')
+    #ERROR(%Procedure & 'Error: File Lookup needs to refer to Entry Control')
+  #ENDIF
+  #ENDFOR
+#ENDAT
+
+#AT (%DataSectionBeforeWindow)
+#FOR(%TSValidate)
+#FIX(%Control,%TSFieldsToValidate)
+PTS::%ControlUse         BYTE(0)
+#ENDFOR
+#ENDAT
+
+#AT(%BeforeAccept)
+#FOR(%TSValidate)
+%TSFieldsToValidate{Prop:Req}=True
+#ENDFOR
+#ENDAT
+#AT(%AcceptLoopBeforeEventHandling)
+  CASE EVENT()
+   OF EVENT:Selected
+    #FOR(%TSValidate)
+    #FIX(%Control,%TSFieldsToValidate)
+      Do TS::Validate:%ControlUse
+      IF PTS::%ControlUse=2
+         PTS::%ControlUse=0
+         CYCLE
+      END
+    #ENDFOR
+  END
+#ENDAT
+
+#AT(%ProcedureRoutines)
+#FOR(%TSValidate)
+#FIX(%Control,%TSFieldsToValidate)
+TS::Validate:%ControlUse   Routine
+#IF(%TSCancelButton)
+  IF SELECTED()=%TSCancelButton
+     EXIT
+  .
+#ENDIF
+  IF SELECTED()<> %TSFieldsToValidate |
+  AND %ControlUse='' |
+  #IF(%TSLookupButton)
+  AND PTS::%ControlUse=1 |
+  AND SELECTED()<> %TSLookupButton
+  #ELSE
+  AND PTS::%ControlUse=1
+  #ENDIF
+    #EMBED(%TSAfterControlValidationRejected,'TS-After Control Validation Rejected'),%ActiveTemplateInstance,MAP(%ActiveTemplateInstance,%ActiveTemplateinstanceDescription)
+    Post(Event:Accepted,%TSFieldsToValidate)
+    Select(%TSFieldsToValidate)
+    PTS::%ControlUse=2
+    Exit
+  .
+  IF SELECTED()<> %TSFieldsToValidate
+    #EMBED(%TSAfterControlValidated,'TS-After Control Is Validated'),%ActiveTemplateInstance,MAP(%ActiveTemplateInstance,%ActiveTemplateinstanceDescription)
+    PTS::%ControlUse=0
+    Exit
+  .
+  IF SELECTED()=%TSFieldsToValidate
+    PTS::%ControlUse=1                                             
+  END
+#ENDFOR
+#ENDAT
+!#------------------------------------------------------------------
+#EXTENSION(EnterSelectsRecord,'Enter Key Selects Record From List'),PROCEDURE,HLP('Enter Key Selects Record From List')
+#DISPLAY('This Extension will allow the Enter Key to select a record')
+#DISPLAY('when the List Box is called as a lookup, and to activate')
+#DISPLAY('the Button you specify below.')
+#DISPLAY('')
+#PROMPT('List Box to act on:',FROM(%CONTROL,%ControlType='LIST')),%TSEnterList
+#PROMPT('Button To Activate:',FROM(%CONTROL,%ControlType='BUTTON')),%TSSelectButton
+#PROMPT('Only When Selecting',CHECK),%TSOnlySelecting,DEFAULT(1)
+#AT (%DataSectionBeforeWindow)
+PTS::SelectV          BYTE(0)
+#ENDAT
+#AT(%AcceptLoopBeforeEventHandling)
+  #IF(%TSOnlySelecting)
+   #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+  If OriginalRequest=SelectRecord
+   #ELSE
+  If SELF.Request=SelectRecord
+   #ENDIF
+   Alert(Enterkey)
+  End
+  #ELSE
+    Alert(Enterkey)
+  #ENDIF
+  IF Event()=EVENT:Selected
+      If Selected()=%TSEnterList
+        PTS::SelectV=1
+      Else
+        PTS::SelectV=0
+      .
+   .
+   IF Event()=EVENT:PreAlertKey
+      #IF(%TSOnlySelecting)
+       #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+      If Keycode()=Enterkey and OriginalRequest=SelectRecord and PTS::SelectV
+       #ELSE
+      If Keycode()=Enterkey and SELF.Request=SelectRecord and PTS::SelectV
+       #ENDIF
+      #ELSE
+      If Keycode()=Enterkey and PTS::SelectV
+      #ENDIF
+         Post(Event:Accepted,%TSSelectButton)
+         cycle
+      .
+   .
+#ENDAT
+#!===================================================================
+#EXTENSION(ConvertNumberToWords,'Convert Number To Words'),PROCEDURE,HLP('Convert Number To Words')
+#DISPLAY('This Template will convert any number to Words,')
+#DISPLAY('ie, such as when writing a Check.')
+#DISPLAY('')
+#PROMPT('Field With Number:',FIELD),%TSFieldWithNumber
+#PROMPT('String Field To Fill:',FIELD),%TSStringToFill
+#PROMPT('Fill String With Character',CHECK),%TSFillString
+#BOXED,WHERE(%TSFillString)
+#PROMPT('Character For Fill',@s1),%TSFillChar,DEFAULT('*')
+#PROMPT('Maximum Length To Fill',@n3),%TSLengthToFill
+#ENDBOXED
+
+#AT(%DataSectionBeforeWindow)
+TS::WorkNumber     Like(%TSFieldWithNumber)
+#ENDAT
+#AT(%DataSectionBeforeReport)
+TS::WorkNumber     Like(%TSFieldWithNumber)
+#ENDAT
+#AT(%AcceptLoopAfterFieldHandling)
+  TS::WorkNumber=%TSFieldWithNumber
+  Do TS::ConvertNumber
+#ENDAT
+#AT(%BeforePrint)
+  TS::WorkNumber=%TSFieldWithNumber
+  Do TS::ConvertNumber
+#ENDAT
+
+#AT(%ProcedureRoutines)
+TS::ConvertNumber     Routine
+
+   %TSStringToFill=''
+   IF TS::WorkNumber=0;Exit.
+   IF TS::WorkNumber>999999.99
+      TS::NTC#=TS::WorkNumber/1000000
+      TS::WorkNumber-=TS::NTC# * 1000000
+      Do TS::ConvertWords
+      %TSStringToFill=clip(%TSStringToFill) & ' Million'
+
+   .
+   IF TS::WorkNumber>999.99
+      TS::NTC#=TS::WorkNumber/1000
+      TS::WorkNumber-=TS::NTC# * 1000
+      Do TS::ConvertWords
+      %TSStringToFill=clip(%TSStringToFill) & ' Thousand'
+
+   .
+   IF TS::WorkNumber>.99
+      TS::NTC#=TS::WorkNumber
+      TS::WorkNumber-=TS::NTC#
+      Do TS::ConvertWords
+      %TSStringToFill=clip(%TSStringToFill)
+   .
+   IF TS::WorkNumber>0
+      %TSStringToFill=clip(%TSStringToFill) & ' and ' & TS::WorkNumber*100 & '/100'
+   ELSE
+      %TSStringToFill=clip(%TSStringToFill) & ' and 00/100'
+   .
+   #IF(%TSFillString)
+    %TSStringToFill=clip(%TSStringToFill) &  '%TSFillChar{%TSLengthToFill}'
+   #ENDIF
+
+TS::ConvertWords     Routine
+
+   IF TS::NTC#>99
+      IF TS::NTC#>899
+         %TSStringToFill=clip(%TSStringToFill) & ' Nine'
+         TS::NTC#-=900
+      ELSIF TS::NTC#>799
+         %TSStringToFill=clip(%TSStringToFill) & ' Eight'
+         TS::NTC#-=800
+      ELSIF TS::NTC#>699
+         %TSStringToFill=clip(%TSStringToFill) & ' Seven'
+         TS::NTC#-=700
+      ELSIF TS::NTC#>599
+         %TSStringToFill=clip(%TSStringToFill) & ' Six'
+         TS::NTC#-=600
+      ELSIF TS::NTC#>499
+         %TSStringToFill=clip(%TSStringToFill) & ' Five'
+         TS::NTC#-=500
+      ELSIF TS::NTC#>399
+         %TSStringToFill=clip(%TSStringToFill) & ' Four'
+         TS::NTC#-=400
+      ELSIF TS::NTC#>299
+         %TSStringToFill=clip(%TSStringToFill) & ' Three'
+         TS::NTC#-=300
+      ELSIF TS::NTC#>199
+         %TSStringToFill=clip(%TSStringToFill) & ' Two'
+         TS::NTC#-=200
+      ELSIF TS::NTC#>99
+         %TSStringToFill=clip(%TSStringToFill) & ' One'
+         TS::NTC#-=100
+      .
+      %TSStringToFill=clip(%TSStringToFill) & ' Hundred'
+   .
+   IF TS::NTC#>9
+      IF TS::NTC#>89
+         %TSStringToFill=clip(%TSStringToFill) & ' Ninety'
+         TS::NTC#-=90
+      ELSIF TS::NTC#>79
+         %TSStringToFill=clip(%TSStringToFill) & ' Eighty'
+         TS::NTC#-=80
+      ELSIF TS::NTC#>69
+         %TSStringToFill=clip(%TSStringToFill) & ' Seventy'
+         TS::NTC#-=70
+      ELSIF TS::NTC#>59
+         %TSStringToFill=clip(%TSStringToFill) & ' Sixty'
+         TS::NTC#-=60
+      ELSIF TS::NTC#>49
+         %TSStringToFill=clip(%TSStringToFill) & ' Fifty'
+         TS::NTC#-=50
+      ELSIF TS::NTC#>39
+         %TSStringToFill=clip(%TSStringToFill) & ' Forty'
+         TS::NTC#-=40
+      ELSIF TS::NTC#>29
+         %TSStringToFill=clip(%TSStringToFill) & ' Thirty'
+         TS::NTC#-=30
+      ELSIF TS::NTC#>19
+         %TSStringToFill=clip(%TSStringToFill) & ' Twenty'
+         TS::NTC#-=20
+      ELSIF TS::NTC#>18
+         %TSStringToFill=clip(%TSStringToFill) & ' Nineteen'
+         TS::NTC#-=19
+      ELSIF TS::NTC#>17
+         %TSStringToFill=clip(%TSStringToFill) & ' Eighteen'
+         TS::NTC#-=18
+      ELSIF TS::NTC#>16
+         %TSStringToFill=clip(%TSStringToFill) & ' Seventeen'
+         TS::NTC#-=17
+      ELSIF TS::NTC#>15
+         %TSStringToFill=clip(%TSStringToFill) & ' Sixteen'
+         TS::NTC#-=16
+      ELSIF TS::NTC#>14
+         %TSStringToFill=clip(%TSStringToFill) & ' Fifteen'
+         TS::NTC#-=15
+      ELSIF TS::NTC#>13
+         %TSStringToFill=clip(%TSStringToFill) & ' Fourteen'
+         TS::NTC#-=14
+      ELSIF TS::NTC#>12
+         %TSStringToFill=clip(%TSStringToFill) & ' Thirteen'
+         TS::NTC#-=13
+      ELSIF TS::NTC#>11
+         %TSStringToFill=clip(%TSStringToFill) & ' Twelve'
+         TS::NTC#-=12
+      ELSIF TS::NTC#>10
+         %TSStringToFill=clip(%TSStringToFill) & ' Eleven'
+         TS::NTC#-=11
+      ELSIF TS::NTC#>9
+         %TSStringToFill=clip(%TSStringToFill) & ' Ten'
+         TS::NTC#-=10
+      .
+   .
+   IF TS::NTC#>.99
+      IF TS::NTC#>8
+         %TSStringToFill=clip(%TSStringToFill) & ' Nine'
+         TS::NTC#-=9
+      ELSIF TS::NTC#>7
+         %TSStringToFill=clip(%TSStringToFill) & ' Eight'
+         TS::NTC#-=8
+      ELSIF TS::NTC#>6
+         %TSStringToFill=clip(%TSStringToFill) & ' Seven'
+         TS::NTC#-=7
+      ELSIF TS::NTC#>5
+         %TSStringToFill=clip(%TSStringToFill) & ' Six'
+         TS::NTC#-=6
+      ELSIF TS::NTC#>4
+         %TSStringToFill=clip(%TSStringToFill) & ' Five'
+         TS::NTC#-=5
+      ELSIF TS::NTC#>3
+         %TSStringToFill=clip(%TSStringToFill) & ' Four'
+         TS::NTC#-=4
+      ELSIF TS::NTC#>2
+         %TSStringToFill=clip(%TSStringToFill) & ' Three'
+         TS::NTC#-=3
+      ELSIF TS::NTC#>1
+         %TSStringToFill=clip(%TSStringToFill) & ' Two'
+         TS::NTC#-=2
+      ELSIF TS::NTC#>0
+         %TSStringToFill=clip(%TSStringToFill) & ' One'
+         TS::NTC#-=1
+      .
+   .
+
+#ENDAT
+#!======================================================================
+#EXTENSION(OneLookupManyFields,'One Lookup Many Fields Extension'),PROCEDURE,MULTI,HLP('One Lookup, Many Fields')
+#SHEET
+#TAB('Fields')
+#BOXED('Lookup Fields')
+#BUTTON('Fields To Share Lookup'),MULTI(%TSLookup,%TSFieldsToLookup),INLINE
+#PROMPT('Field To Share Lookup:',FIELD),%TSFieldsToLookup
+#ENDBUTTON
+#ENDBOXED
+#PROMPT('Type Of Lookup',OPTION),%TSTypeOfLookup
+#PROMPT('Field From File',RADIO)
+#PROMPT('File Name',RADIO)
+#PROMPT('Printer',RADIO)
+#PROMPT('Custom',RADIO)
+#PROMPT('Button To Call Lookup',FROM(%CONTROL,%ControlType='BUTTON')),%TSLookupButton
+#PROMPT('Only Call Lookup When Button Pressed',CHECK),%TSButtonOnly,AT(10,,,)
+#PROMPT('Store Previous Value In Var:',@S100),%TSStorePrevious
+#ENDTAB
+#TAB('File Setup'),WHERE(%TSTypeOfLookup='File Name')
+#BOXED('DOS File Lookup Prompts')
+  #PROMPT('&File Dialog Header:',@S60),%DOSFileDialogHeader,REQ,DEFAULT('Choose a File')
+  #PROMPT('&Return to original directory when done.',CHECK),%ReturnToOriginalDir,AT(10)
+  #PROMPT('&Use a variable to specify the file mask(s).',CHECK),%DOSVariableMask,AT(10)
+  #ENABLE(%DOSVariableMask)
+    #PROMPT('Vari&able Mask Value:',FIELD),%DOSVariableMaskValue
+  #ENDENABLE
+  #ENABLE(NOT %DOSVariableMask)
+    #PROMPT('F&ile Mask Description:',@S40),%DOSMaskDesc,REQ,DEFAULT('All Files')
+    #PROMPT('Fi&le Mask',@S100),%DOSMask,REQ,DEFAULT('*.*')
+    #BUTTON('More Fil&e Masks'),MULTI(%DOSMoreMasks,%DOSMoreMaskDesc & ' - ' & %DOSMoreMask)
+      #PROMPT('File Mask Description:',@S40),%DOSMoreMaskDesc,REQ
+      #PROMPT('File Mask',@S100),%DOSMoreMask,REQ
+    #ENDBUTTON
+  #ENDENABLE
+#ENDBOXED
+#ENDTAB
+#TAB('Printer Setup'),WHERE(%TSTypeOfLookup='Printer')
+#PROMPT('Printer Window Text:',@S20),%TSPrinterText,DEFAULT('Choose Printer')
+#PROMPT('Call Printer Setup',CHECK),%TSPrinterSetup
+#ENDTAB
+#TAB('Lookups'),WHERE(%TSTypeOfLookup='Field From File')
+#BOXED('Entry Control Prompts')
+    #BOXED('When the Control Is Accepted')
+      #PROMPT('Lookup File',FILE),%TSLookupFile
+      #PROMPT('Lookup Key',KEY),%TSLookupKey
+      #ENABLE(%TSLookupKey),CLEAR
+        #PROMPT('Lookup Field',COMPONENT(%TSLookupKey)),%TSLookupField,REQ
+        #PROMPT('Lookup Procedure',PROCEDURE),%TSLookupProcedure,REQ
+        #PROMPT('Perform Lookup during Non-Stop Select',CHECK),%TSLookupDuringValidate,DEFAULT(1),AT(10,,180)
+      #ENDENABLE
+    #ENDBOXED
+    #BOXED('Fields To Prime Prior To Lookup')
+    #BUTTON('Fields To Prime'),MULTI(%TSToPrime,%TSFieldToPrime),AT(,,,60),INLINE
+    #PROMPT('Field To Prime:',FIELD),%TSFieldToPrime
+    #PROMPT('Value:',@S30),%TSFieldToPrimeValue
+    #ENDBUTTON
+    #ENDBOXED
+#ENDBOXED
+#ENDTAB
+#TAB('Custom Lookup'),WHERE(%TSTypeOfLookup='Custom')
+#DISPLAY('Choose a Variable To Fill.  This should NOT be')
+#DISPLAY('a Field on the Form.  It should be a Variable')
+#DISPLAY('that your custom code will fill, that will')
+#DISPLAY('in turn be entered into the Field.')
+#PROMPT('Variable To Fill',FIELD),%TSCustomVar
+#BOXED
+#BUTTON('Custom Code'),MULTI(%TSCustom,%TSCustomCode),AT(,,,60),INLINE
+    #PROMPT('Custom Code',@S80),%TSCustomCode
+#ENDBUTTON
+#ENDBOXED
+#ENDTAB
+#ENDSHEET
+#LOCALDATA
+DOSDialogHeader      CSTRING(40)
+DOSExtParameter      CSTRING(250)
+DOSTargetVariable    CSTRING(80)
+#ENDLOCALDATA
+#AT(%DataSectionBeforeWindow)
+TS::OldSelected:%ActiveTemplateInstance    SHORT(0)
+PTS::LU:%ActiveTemplateInstance            SHORT(0)
+#ENDAT
+#ATSTART
+#IF(%TSTypeOfLookup='File Name')
+  #DECLARE(%DOSExtensionParameter)
+  #DECLARE(%DOSLookupControl)
+  #FOR(%Control),WHERE(%ControlInstance = %ActiveTemplateInstance)
+    #SET(%DOSLookupControl,%Control)
+  #ENDFOR
+  #IF(NOT %DOSVariableMask)
+    #SET(%DOSExtensionParameter,%DOSMaskDesc & '|' & %DOSMask)
+    #FOR(%DOSMoreMasks)
+      #SET(%DOSExtensionParameter,%DOSExtensionParameter & '|' & %DOSMoreMaskDesc & '|' & %DOSMoreMask)
+    #ENDFOR
+  #END
+#ENDIF
+#ENDAT
+
+
+#AT(%AcceptLoopAfterFieldHandling)
+  Case Event()
+  Of Event:Selected
+   #IF(%TSLookupButton)
+    If Selected()=%TSLookupButton
+      PTS::LU:%ActiveTemplateInstance=1
+      Do TS::GroupLookup:%ActiveTemplateInstance
+      PTS::LU:%ActiveTemplateInstance=0
+    Else
+      PTS::LU:%ActiveTemplateInstance=0
+      Do TS::CheckButton:%ActiveTemplateInstance
+    .
+   #ENDIF
+     TS::OldSelected:%ActiveTemplateInstance=Selected()
+    #IF(~%TSButtonOnly)
+  Of Event:Accepted
+    Do TS::GroupLookup:%ActiveTemplateInstance
+    #ENDIF
+  END
+    
+#ENDAT
+#AT(%ProcedureRoutines)
+TS::GroupLookup:%ActiveTemplateInstance      Routine
+#IF(%TSLookupDuringValidate)
+  IF %Window{Prop:AcceptAll} = True
+     Exit
+  End
+#ENDIF
+#IF(%TSButtonOnly)
+  IF Field() <> %TSLookupButton;Exit.
+#ENDIF
+  #FIX(%File,%TSLookupFile)
+  #IF(%TSTypeOfLookup='Field From File')
+  Clear(%FilePrefix:Record)
+  #ENDIF
+#FOR(%TSLookup)
+  IF TS::OldSelected:%ActiveTemplateInstance=?%TSFieldsToLookup
+   #IF(%TSTypeOfLookup='Field From File')
+     %TSLookupField=%TSFieldsToLookup
+     
+     #IF(%TSStorePrevious <> '')
+     %TSStorePrevious = %TSFieldsToLookup
+     #ENDIF
+     Do TS::Lookup:%ActiveTemplateInstance
+     If GlobalResponse=RequestCompleted
+       %TSFieldsToLookup=%TSLookupField
+     End
+   #ENDIF
+   #IF(%TSTypeOfLookup='File Name')
+     DOSTargetVariable = %TSFieldsToLookup
+     DO TS::ValidateFile:%ActiveTemplateInstance
+     %TSFieldsToLookup = DOSTargetVariable
+     PTS::LU:%ActiveTemplateInstance=1
+   #ENDIF
+   #IF(%TSTypeOfLookup='Printer')
+     TS::X#=PRINTERDIALOG('%TSPrinterText',%TSPrinterSetup)
+     %TSFieldsToLookup=PRINTER{Propprint:Device}
+     PTS::LU:%ActiveTemplateInstance=1
+   #ENDIF
+   #IF(%TSTypeOfLookup='Custom')
+     #FOR(%TSCustom)
+     %TSCustomCode
+     #ENDFOR
+     %TSFieldsToLookup=%TSCustomVar
+     PTS::LU:%ActiveTemplateInstance=1
+   #ENDIF
+     Display(?%TSFieldsToLookup)
+     IF PTS::LU:%ActiveTemplateInstance
+        Select(?%TSFieldsToLookup)
+     .
+     PTS::LU:%ActiveTemplateInstance=0
+     Exit
+  END
+#ENDFOR
+#IF(%TSTypeOfLookup='Field From File')
+TS::Lookup:%ActiveTemplateInstance          Routine
+  #EMBED(%TSBeforePrimingLookupFields,'TS-Before Priming Lookup Fields'),%ActiveTemplateInstance,MAP(%ActiveTemplateInstance,%ActiveTemplateinstanceDescription)
+#FOR(%TSToPrime)
+  %TSFieldToPrime=%TSFieldToPrimeValue
+#ENDFOR
+  #EMBED(%TSAfterPrimingLookupFields,'TS-After Priming Lookup Fields'),%ActiveTemplateInstance,MAP(%ActiveTemplateInstance,%ActiveTemplateinstanceDescription)
+  IF ~PTS::LU:%ActiveTemplateInstance
+    IF %TSLookupField = '';Exit.
+    Get(%TSLookupFile,%TSLookupKey)
+    If Error()
+      PTS::LU:%ActiveTemplateInstance=1
+    End
+  End
+  IF PTS::LU:%ActiveTemplateInstance
+    globalrequest=selectrecord
+    %TSLookupProcedure
+  End
+  #EMBED(%TSAfterManyFieldsLookupCompleted,'TS-After Many Fields Lookup Completed'),%ActiveTemplateInstance,MAP(%ActiveTemplateInstance,%ActiveTemplateinstanceDescription)
+#ENDIF
+
+#IF(%TSLookupButton)
+TS::CheckButton:%ActiveTemplateInstance     Routine
+  IF %Window{Prop:AcceptAll} = True
+     Exit
+  End
+  IF |
+#FOR(%TSLookup)
+  #IF(INSTANCE(%TSLookup)=ITEMS(%TSLookup))
+  Selected()=?%TSFieldsToLookup
+  #ELSE
+  Selected()=?%TSFieldsToLookup OR |
+  #ENDIF
+#ENDFOR
+    Enable(%TSLookupButton)
+    #EMBED(%TSAtCheckButtonEnable,'TS-At Check Button Enable'),%ActiveTemplateInstance,MAP(%ActiveTemplateInstance,%ActiveTemplateinstanceDescription)
+  Else
+    Disable(%TSLookupButton)
+    #EMBED(%TSAtCheckButtonDisable,'TS-At Check Button Disable'),%ActiveTemplateInstance,MAP(%ActiveTemplateInstance,%ActiveTemplateinstanceDescription)
+  END
+#ENDIF
+#IF(%TSTypeOfLookup='File Name')
+TS::ValidateFile:%ActiveTemplateInstance    Routine
+  #INSERT(%StandardValueAssignment(Clarion),'DOSDialogHeader',%DOSFileDialogHeader)
+#IF(%DOSVariableMask)
+  DOSExtParameter = %DOSVariableMaskValue
+#ELSE
+  DOSExtParameter = '%DOSExtensionParameter'
+#ENDIF
+#IF(%ReturnToOriginalDir)
+  IF FILEDIALOG(DOSDialogHeader,DOSTargetVariable,DOSExtParameter,FILE:KeepDIR)
+#ELSE
+  IF FILEDIALOG(DOSDialogHeader,DOSTargetVariable,DOSExtParameter,0)
+#ENDIF
+  END
+#ENDIF
+#ENDAT
+#!--------------------------------------------------------------------
+#EXTENSION(KeepAddingRecords,'Keep Adding Records To A File'),PROCEDURE,HLP('Keep Adding Records')
+#DISPLAY('This Extension will allow you to keep adding records')
+#DISPLAY('to a file without returning to the originating browse.')
+#DISPLAY('')
+#PROMPT('File To Add:',FILE),%TSFileToAdd
+#PROMPT('First Field To Select:',CONTROL),%TSFieldToSelect
+#PROMPT('Ask To Add Next Record',CHECK),%TSAskToAdd
+#AT(%DataSectionBeforeWindow)
+TS::AddedOne    Byte(0)
+#ENDAT
+#AT(%WindowEventHandling,'CloseWindow')
+#FIX(%File,%TSFileToAdd)
+ #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+ IF LocalResponse=RequestCompleted and OriginalRequest=InsertRecord
+   #ELSE
+ IF ThisWindow.Response=RequestCompleted and SELF.Request=InsertRecord
+ #ENDIF
+ #IF(%TSAskToAdd)
+  CASE MESSAGE('Record successfully added.<13,10>'&|
+    'Add another?', |
+    '', Icon:Question, |
+    Button:Yes+Button:No, , 0)
+  OF Button:Yes
+ #ENDIF
+  TS::AddedOne=1
+ #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+  IF (OriginalRequest=InsertRecord) |
+  AND LocalResponse=RequestCompleted
+ #ELSE
+  IF (SELF.Request=InsertRecord) |
+  AND ThisWindow.Response=RequestCompleted
+ #ENDIF
+    CLEAR(%FilePrefix:Record)
+    #EMBED(%TSBeforePrimingFieldsForContinuousRecordAdd,'TS-Before Priming Fields For Continuous Record Add')
+   #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+    DO PrimeFields
+   #ELSE
+    IF SELF.PrimeUpdate() THEN RETURN Level:Notify.
+   #ENDIF
+   #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+    IF LocalResponse = RequestCancelled
+       DO ProcedureReturn
+    END
+    LocalResponse = RequestCancelled
+   #ELSE
+    IF ThisWindow.Response = RequestCancelled
+       ThisWindow.Kill
+    END
+    ThisWindow.Response = RequestCancelled
+   #ENDIF
+    #EMBED(%TSAfterPrimingFieldsForContinuousRecordAdd,'TS-After Priming Fields For Continuous Record Add')
+ #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+   ForceRefresh = True
+   DO RefreshWindow
+ #ELSE
+   ThisWindow.Reset(1)
+ #ENDIF
+    Select(%TSFieldToSelect)
+    CYCLE
+  .
+ #IF(%TSAskToAdd)
+ END
+ #ENDIF
+ END
+#ENDAT
+#AT(%EndOfProcedure)
+  IF TS::AddedOne
+     GlobalResponse=RequestCompleted
+   #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+     LocalResponse=RequestCompleted
+   #ELSE
+     ThisWindow.Response=RequestCompleted
+   #ENDIF
+  .
+#ENDAT
+#! ----------------------------------------------------------------
+#UTILITY(ExportFilesForWordImport,'Export Files To Import To MS Word'),HLP('Miscellaneous Utilities')
+#DISPLAY('This Utility will Export your dictionary to an ASCII')
+#DISPLAY('file that can be imported to Word.  Sections are')
+#DISPLAY('separated by an exclamation point (!).  You can then')
+#DISPLAY('use Words "Convert Text To Table" option to put')
+#DISPLAY('your dictionary into a Table, making it easy to create')
+#DISPLAY('end-user documentation.')
+#PROMPT('File Name to export',@S80),%TSClarionExport
+#DECLARE(%CustomGlobalMapModule),UNIQUE
+#DECLARE(%CustomGlobalMapProcedure,%CustomGlobalMapModule),MULTI
+#DECLARE(%ValueConstruct)
+#DECLARE(%FileThreadedFlag)
+#DECLARE(%FileExternalFlag)
+#CREATE(%TSClarionExport)
+#REDIRECT(%TSClarionExport)
+#MESSAGE('Writing File Definitions',1)
+File Export! !
+From: %DictionaryFile! !
+Application: %Application! !
+Created: %@D1@ProgramDateCreated, %@T1@ProgramTimeCreated! !
+Changed: %@D1@ProgramDateChanged, %@T1@ProgramTimeChanged! !
+
+#FOR (%File)
+  #IF(EXTRACT(%FileUserOptions,'TSSkip'))
+  #CYCLE
+  #ENDIF
+  #IF(%FileLongDesc)
+%File                  !%[50]FileLongDesc      !
+  #ELSE
+%File                  !%[50]FileDescription   !
+  #ENDIF
+  #FOR (%Field), WHERE(%FieldType = 'MEMO')
+  #IF(%FieldLongDesc)
+%Field                 !%[50]FieldLongDesc     !%FieldDisplayPicture
+  #ELSE
+%Field                 !%[50]FieldDescription  !%FieldDisplayPicture
+  #END
+  #ENDFOR
+  #FOR (%Field), WHERE(%FieldType = 'BLOB')
+  #IF(%FieldLongDesc)
+%Field                 !%[50]FieldLongDesc     !%FieldDisplayPicture
+  #ELSE
+%Field                 !%[50]FieldDescription  !%FieldDisplayPicture
+  #ENDIF
+  #ENDFOR
+  #FOR (%Field), WHERE(%FieldType <> 'MEMO' AND %FieldType <> 'BLOB' AND %FieldType <> 'RECORD')
+  #IF(%FieldLongDesc)
+%Field                 !%[50]FieldLongDesc     !%FieldDisplayPicture
+  #ELSE
+%Field                 !%[50]FieldDescription  !%FieldDisplayPicture
+  #ENDIF
+  #ENDFOR
+#FOR(%Relation)
+  #IF(EXTRACT(%RelationUserOptions,'TSSkip'))
+  #CYCLE
+  #ENDIF
+Related To: %Relation ! !
+#ENDFOR
+ ! !
+#ENDFOR
+#!---------------------------------------------------------------------
+#EXTENSION(SlidingListBoxes,'Sliding List Boxes'),PROCEDURE,HLP('Sliding List Boxes')
+#BOXED  ('Region Controls')
+#BUTTON ('Region Groups'),MULTI(%TSSliderGroup,%TSSliderControl),INLINE
+#SHEET
+#TAB    ('General')
+#PROMPT ('Region Control:',FROM(%CONTROL,%ControlType='REGION')),%TSSliderControl,REQ
+#PROMPT ('Color When Moving:',COLOR),%TSColor,DEFAULT('COLOR:ACTIVEBORDER')
+#PROMPT ('Save Location in INI File',CHECK),%TSSaveInINI,DEFAULT(1)
+#PROMPT ('Type Of Control',OPTION),%TSControlType,DEFAULT('Slider')
+#PROMPT ('Slider',RADIO)
+#PROMPT ('Mover',RADIO)
+#PROMPT ('Sliding Control',RADIO)
+#BOXED  (''),WHERE(%TSControlType='Mover' OR %TSControlType='Sliding Control')
+#PROMPT ('Border Control:',FROM(%CONTROL,%ControlType='BOX')),%TSBorderControl
+#ENDBOXED
+#PROMPT ('Move Left/Right',CHECK),%TSMoveLeftRight,DEFAULT(1)
+#PROMPT ('Move Up/Down',CHECK),%TSMoveUpDown
+#PROMPT ('Code After Slider Completes:',@S100),%PTSCodeAfterSlider
+#BOXED  ('Top/Left Controls'),WHERE(%TSControlType<>'Sliding Control')
+#BUTTON ('Top/Left Controls'),MULTI(%TSTopLeftGroup,%TSTopLeft),AT(,,,60),INLINE
+#PROMPT ('Top/Left Control',CONTROL),%TSTopLeft
+#PROMPT ('Offset:',@N_7),%TSTopLeftOffset
+#PROMPT ('Resize Control:',CHECK),%TSTopLeftResize,DEFAULT(1)
+#PROMPT ('PowerBrowse Control',CHECK),%TSTopLeftPB
+#ENDBUTTON
+#ENDBOXED
+#BOXED  ('Bottom/Right Controls'),WHERE(%TSControlType<>'Sliding Control')
+#BUTTON ('Bottom/Right Controls'),MULTI(%TSBottomRightGroup,%TSBottomRight),AT(,,,60),INLINE
+#PROMPT ('Bottom/Right Control',CONTROL),%TSBottomRight
+#PROMPT ('Offset:',@N_7),%TSBottomRightOffset
+#PROMPT ('Resize Control:',CHECK),%TSBottomRightResize,DEFAULT(1)
+#PROMPT ('PowerBrowse Control',CHECK),%TSBottomRightPB
+#ENDBUTTON
+#ENDBOXED
+#ENDTAB
+#TAB    ('Borders'),WHERE(%TSControlType='Slider')
+#PROMPT ('Top Border:',@n_4),%TSTopBorder, DEFAULT(20)
+#PROMPT ('Bottom Border:',@n_4),%TSBottomBorder, DEFAULT(20)
+#PROMPT ('Left Border:',@n_4),%TSLeftBorder, DEFAULT(10)
+#PROMPT ('Right Border:',@n_4),%TSRightBorder, DEFAULT(10)
+#ENDTAB
+#TAB    ('Special'),WHERE(%TSControlType='Sliding Control')
+#BOXED  ('')
+#PROMPT ('Sliding Control Moves:',OPTION),%TSControlMoves
+#PROMPT ('Left To Right',RADIO)
+#PROMPT ('Right To Left',RADIO)
+#PROMPT ('Top To Bottom',RADIO)
+#PROMPT ('Bottom To Top',RADIO)
+#PROMPT ('Return Relative Position',CHECK),%TSReturnRelative
+#BOXED  ('Return Variable'),WHERE(%TSReturnRelative)
+#PROMPT ('Variable: ',FIELD),%TSRelativeVar
+#ENDBOXED
+#PROMPT ('Set Initial Percentage To: ',@S50),%TSInitialPercent
+#DISPLAY('(May Be Variable)')
+#ENDBOXED
+#ENDTAB
+#ENDSHEET
+#ENDBUTTON
+#ENDBOXED
+#PROMPT ('Allow Multiple User Configs',CHECK),%TSUseIniVariable,DEFAULT(1)
+#BOXED  ('Variable'),WHERE(%TSUseIniVariable)
+#PROMPT ('Unique User-ID Variable:',@S20),%TSIniVariable
+#ENDBOXED
+#DISPLAY('NOTE: Be sure to the Gizmos Global Extension when')
+#DISPLAY('using this Template.')
+
+#AT (%DataSectionBeforeWindow)
+#DECLARE(%Resize)
+#DECLARE(%OldWin)
+#DECLARE(%OldSize)
+#DECLARE(%TSSliderNumber)
+#DECLARE(%TSTopLeftVar)
+#DECLARE(%TSControlVar)
+#DECLARE(%ControlLabels),MULTI
+  #SET(%TSSliderNumber,1)
+  #FOR(%TSSliderGroup)
+#IF(%TSMoveLeftRight)
+TS::SliderX%TSSliderNumber   SHORT(0)
+#ENDIF
+#IF(%TSMoveUpDown)
+TS::SliderY%TSSliderNumber   SHORT(0)
+#ENDIF
+  #SET(%TSSliderNumber,%TSSliderNumber+1)
+  #ENDFOR
+  #SET(%TSSliderNumber,1)
+  #FOR(%TSSliderGroup)
+  #FOR(%TSTopLeftGroup)
+#IF(%TSTopLeftOffset)
+TS::TLOffset%TSSliderNumber  LONG
+#ENDIF
+  #ENDFOR
+  #FOR(%TSBottomRightGroup)
+#IF(%TSBottomRightOffset)
+TS::BROffset%TSSliderNumber  LONG
+#ENDIF
+  #ENDFOR
+  #SET(%TSSliderNumber,%TSSliderNumber+1)
+  #ENDFOR
+#ENDAT
+#AT(%BeforeAccept)
+  DO TS::SliderSetup
+  POST(EVENT:PTS)
+#ENDAT
+#AT(%WindowEventHandling,'Sized'),PRIORITY(10000)
+   DO TS::SliderSetup
+#ENDAT
+#AT(%AcceptLoopBeforeEventHandling)
+   IF EVENT()=EVENT:MouseMove OR EVENT()=EVENT:PTS
+     Do TS::MouseMove
+     #FOR(%TSSliderGroup)
+    #IF(%TSControlType='Sliding Control')
+    IF FIELD()=%TSSliderControl OR EVENT()=EVENT:PTS
+    #ENDIF
+     #IF(%TSReturnRelative)
+     #IF(%TSMoveLeftRight)
+     %TSRelativeVar=(((%TSSliderControl{PROP:Xpos}-%TSBorderControl{PROP:Xpos})/(%TSBorderControl{prop:width}-%TSSliderControl{prop:width})))*100
+     #IF(%TSControlMoves='Right To Left')
+     %TSRelativeVar=100-%TSRelativeVar
+     #ENDIF
+     #ENDIF
+     #IF(%TSMoveUpDown)
+     %TSRelativeVar=(((%TSSliderControl{prop:ypos}-%TSBorderControl{prop:ypos})/(%TSBorderControl{prop:height}-%TSSliderControl{prop:height})))*100
+     #IF(%TSControlMoves='Bottom To Top')
+     %TSRelativeVar=100-%TSRelativeVar
+     #ENDIF
+     #ENDIF
+     #FIX(%Control,%TSSliderControl)
+     #EMBED(%TSAfterSlidingControlPercent,'After Sliding Control Position Calculated'),%Control,WHERE(%ControlType='REGION')
+     #ENDIF
+    #IF(%TSControlType='Sliding Control')
+    END
+    #ENDIF
+     #ENDFOR
+     Display()
+   .
+   Do TS::CheckSliderFields
+#ENDAT
+
+#AT(%ProcedureRoutines)
+TS::SliderSetup     Routine
+#FOR(%TSSliderGroup)
+ %TSSliderControl{prop:dragid} = 'TS::DragID'
+ %TSSliderControl{prop:fill} = COLOR:NONE
+ %TSSliderControl{prop:imm} = TRUE
+#ENDFOR
+#SET(%TSSliderNumber,1)
+#FOR(%TSSliderGroup)
+ #IF(%TSMoveLeftRight)
+ TS::SliderX%TSSliderNumber=%TSSliderControl{PROP:XPOS}
+ #ENDIF
+ #IF(%TSMoveUpDown)
+ TS::SliderY%TSSliderNumber=%TSSliderControl{PROP:YPOS}
+ #ENDIF
+ #SET(%TSSliderNumber,%TSSliderNumber+1)
+#ENDFOR
+#SET(%TSSliderNumber,1)
+  #FOR(%TSSliderGroup)
+  #FOR(%TSTopLeftGroup)
+#IF(%TSTopLeftOffset)
+  TS::TLOffset%TSSliderNumber=%TSTopLeft + %TSTopLeftOffset
+#ENDIF
+  #ENDFOR
+  #FOR(%TSBottomRightGroup)
+#IF(%TSBottomRightOffset)
+  TS::BROffset%TSSliderNumber=%TSBottomRight + %TSBottomRightOffset
+#ENDIF
+  #ENDFOR
+  #SET(%TSSliderNumber,%TSSliderNumber+1)
+  #ENDFOR
+#SET(%TSSliderNumber,0)
+#FOR (%TSSliderGroup)
+  #IF(%TSSaveInINI)
+  #SET(%TSSliderNumber,1)
+  #ENDIF
+#ENDFOR
+#IF(%TSSliderNumber)
+   DO TS::ControlSetup
+#ENDIF
+
+TS::CheckSliderFields    Routine
+   CASE FIELD()
+    #SET(%TSSliderNumber,1)
+    #FOR(%TSSliderGroup)
+    OF %TSSliderControl
+      CASE EVENT()
+      OF EVENT:MouseIn
+      #IF(%TSMoveLeftRight AND ~%TSMoveUpDown)
+        SETCURSOR(CURSOR:SIZEWE)
+      #ENDIF
+      #IF(~%TSMoveLeftRight AND %TSMoveUpDown)
+        SETCURSOR(CURSOR:SIZENS)
+      #ENDIF
+      #IF(%TSMoveLeftRight AND %TSMoveUpDown)
+        SETCURSOR(CURSOR:SIZE)
+      #ENDIF
+      OF EVENT:MouseOut
+        SETCURSOR(CURSOR:ARROW)
+      OF EVENT:Dragging
+        IF TS::Slider%TSSliderNumber# = FALSE
+         OFFSETX#=MOUSEX() - %TSSliderControl{PROP:XPOS}
+         OFFSETY#=MOUSEY() - %TSSliderControl{PROP:YPOS}
+        .
+        TS::Slider%TSSliderNumber# = TRUE
+        #IF(%TSColor)
+        %TSSliderControl{prop:fill} = %TSColor
+        #ELSE
+        %TSSliderControl{prop:fill} = COLOR:ACTIVEBORDER
+        #ENDIF
+
+      OF EVENT:Drag
+        %TSSliderControl{prop:fill} = COLOR:NONE
+        Do TS::Slider%TSSliderNumber
+     #IF(SUB(%CWTemplateVersion,1,2)='v2' OR (VAREXISTS(%AppTemplateFamily) AND %AppTemplateFamily='CLARION'))
+        ForceRefresh = True
+        DO RefreshWindow
+     #ELSE
+        ThisWindow.Reset(1)
+     #ENDIF
+     #IF(%PTSCodeAfterSlider<>'')
+        %PTSCodeAfterSlider
+     #ENDIF
+        #IF(%TSMoveLeftRight AND ~%TSMoveUpDown)
+        SETCURSOR(CURSOR:SIZEWE)
+        #ENDIF
+        #IF(~%TSMoveLeftRight AND %TSMoveUpDown)
+        SETCURSOR(CURSOR:SIZENS)
+        #ENDIF
+        #IF(%TSMoveLeftRight AND %TSMoveUpDown)
+        SETCURSOR(CURSOR:SIZE)
+        #ENDIF
+      END
+      #SET(%TSSliderNumber,%TSSliderNumber+1)
+    #ENDFOR
+   END
+
+TS::MouseMove    Routine
+     #SET(%TSSliderNumber,1)
+     #FOR(%TSSliderGroup)
+     #IF(%TSTopBorder = 0)
+     #SET(%TSTopBorder,20)
+     #ENDIF
+     #IF(%TSBottomBorder = 0)
+     #SET(%TSBottomBorder,20)
+     #ENDIF
+     #IF(%TSLeftBorder = 0)
+     #SET(%TSLeftBorder,10)
+     #ENDIF
+     #IF(%TSRightBorder = 0)
+     #SET(%TSRightBorder,10)
+     #ENDIF
+      IF TS::Slider%TSSliderNumber#
+      #IF(%TSMoveLeftRight)
+          #SELECT(%TSBottomRightGroup,1)
+          #IF(%TSBorderControl and (%TSControlType='Mover' OR %TSControlType='Sliding Control'))
+          If MOUSEX() - OFFSETX# + %TSSliderControl{prop:width} => %TSBorderControl{prop:XPOS} + %TSBorderControl{prop:width}
+             %TSSliderControl{PROP:XPOS}=%TSBorderControl{prop:XPOS} + %TSBorderControl{prop:width} - %TSSliderControl{prop:width}
+             EXIT
+          .
+          If MOUSEX() - OFFSETX# <= %TSBorderControl{prop:XPOS}
+             %TSSliderControl{PROP:XPOS}=%TSBorderControl{prop:XPOS}
+             EXIT
+          .
+          #ENDIF
+          #IF((%TSBottomRight Or %TSBottomRightOffset) and %TSControlType='Slider')
+          #IF(%TSBottomRightOffset)
+          If MOUSEX()=>TS::BROffset%TSSliderNumber{prop:XPOS} + TS::BROffset%TSSliderNumber{prop:width} - %TSRightBorder
+             %TSSliderControl{PROP:XPOS}=TS::BROffset%TSSliderNumber{prop:XPOS} + TS::BROffset%TSSliderNumber{prop:width} - %TSRightBorder
+             EXIT
+          #ELSE
+          If MOUSEX()=>%TSBottomRight{prop:XPOS} + %TSBottomRight{prop:width} - %TSRightBorder
+             %TSSliderControl{PROP:XPOS}=%TSBottomRight{prop:XPOS} + %TSBottomRight{prop:width} - %TSRightBorder
+             EXIT
+          #ENDIF
+          .
+         #ENDIF
+          #SELECT(%TSTopLeftGroup,1)
+         #IF((%TSTopLeft or %TSTopLeftOffset) and %TSControlType='Slider')
+          #IF(%TSTopLeftOffset)
+          If MOUSEX()<=TS::SliderX%TSSliderNumber{prop:XPOS} + %TSLeftBorder
+             %TSSliderControl{PROP:XPOS}=TS::SliderX%TSSliderNumber{prop:XPOS} + %TSLeftBorder
+             EXIT
+          #ELSE
+          If MOUSEX()<=%TSTopLeft{prop:XPOS} + %TSLeftBorder
+             %TSSliderControl{PROP:XPOS}=%TSTopLeft{prop:XPOS} + %TSLeftBorder
+             EXIT
+          #ENDIF
+          .
+         #ENDIF
+         %TSSliderControl{PROP:XPOS} = MOUSEX() - OFFSETX#
+      #ENDIF
+      #IF(%TSMoveUpDown)
+         #SELECT(%TSBottomRightGroup,1)
+         #IF(%TSBorderControl and (%TSControlType='Mover' OR %TSControlType='Sliding Control'))
+          If MOUSEY() - OFFSETY# + %TSSliderControl{prop:height}=>%TSBorderControl{prop:YPOS} + %TSBorderControl{prop:height}
+             %TSSliderControl{PROP:YPOS}=%TSBorderControl{prop:YPOS} + %TSBorderControl{prop:height} - +%TSSliderControl{prop:height}
+             EXIT
+          .
+          If MOUSEY() - OFFSETY# <=%TSBorderControl{prop:YPOS}
+             %TSSliderControl{PROP:YPOS}=%TSBorderControl{prop:YPOS}
+             EXIT
+          .
+         #ENDIF
+         #IF((%TSBottomRight Or %TSBottomRightOffset) and %TSControlType='Slider')
+          #IF(%TSBottomRightOffset)
+          If MOUSEY()=>TS::BROffset%TSSliderNumber{prop:YPOS} + TS::BROffset%TSSliderNumber{prop:height} - %TSBottomBorder
+             %TSSliderControl{PROP:YPOS}=TS::BROffset%TSSliderNumber{prop:YPOS} + TS::BROffset%TSSliderNumber{prop:height} - %TSBottomBorder
+             EXIT
+          #ELSE
+          If MOUSEY()=>%TSBottomRight{prop:YPOS} + %TSBottomRight{prop:height} - %TSBottomBorder
+             %TSSliderControl{PROP:YPOS}=%TSBottomRight{prop:YPOS} + %TSBottomRight{prop:height} - %TSBottomBorder
+             EXIT
+          #ENDIF
+          .
+         #ENDIF
+          #SELECT(%TSTopLeftGroup,1)
+         #IF((%TSTopLeft Or %TSTopLeftOffset) and %TSControlType='Slider')
+          #IF(%TSTopLeftOffset)
+          If MOUSEY()<=TS::SliderX%TSSliderNumber{prop:YPOS} + %TSTopBorder
+             %TSSliderControl{PROP:YPOS}=TS::SliderX%TSSliderNumber{prop:YPOS} + %TSTopBorder
+             EXIT
+          #ELSE
+          If MOUSEY()<=%TSTopLeft{prop:YPOS} + %TSTopBorder
+             %TSSliderControl{PROP:YPOS}=%TSTopLeft{prop:YPOS} + %TSTopBorder
+             EXIT
+          #ENDIF
+          .
+         #ENDIF
+         %TSSliderControl{PROP:YPOS} = MOUSEY() - OFFSETY#
+      #ENDIF
+          DISPLAY(%TSSliderControl)
+      .
+     #SET(%TSSliderNumber,%TSSliderNumber+1)
+     #ENDFOR
+#ENDAT
+#AT(%ProcedureRoutines)
+#SET(%TSSliderNumber,1)
+#FOR(%TSSliderGroup)
+TS::Slider%TSSliderNumber     Routine
+      #FOR(%TSTopLeftGroup)
+       #IF(%TSTopLeftOffset)
+       HIDE(TS::SliderX%TSSliderNumber)
+       #ELSE
+       HIDE(%TSTopLeft)
+       #ENDIF
+      #ENDFOR
+      #FOR(%TsBottomRightGroup)
+       #IF(%TSBottomRightOffset)
+       HIDE(TS::BROffset%TSSliderNumber)
+       #ELSE
+       HIDE(%TSBottomRight)
+       #ENDIF
+      #ENDFOR
+       TS::Slider%TSSliderNumber# = FALSE
+      #IF(%TSMoveLeftRight)
+        RegionX# = %TSSliderControl{PROP:XPOS} - TS::SliderX%TSSliderNumber
+        #SET(%TSTopLeftVar,1)
+        #FOR(%TSTopLeftGroup)
+       #IF(~%TSTopLeftResize)
+        #IF(%TSTopLeftOffset)
+        TS::SliderX%TSSliderNumber{PROP:XPOS}= TS::SliderX%TSSliderNumber{PROP:XPOS} + RegionX#
+        #ELSE
+        %TSTopLeft{PROP:XPOS}= %TSTopLeft{PROP:XPOS} + RegionX#
+        #ENDIF
+       #ELSE
+        #IF(%TSTopLeftOffset)
+        TS::SliderX%TSSliderNumber{PROP:WIDTH} = TS::SliderX%TSSliderNumber{PROP:WIDTH} + RegionX#
+        #ELSE
+        %TSTopLeft{PROP:WIDTH} = %TSTopLeft{PROP:WIDTH} + RegionX#
+        #ENDIF
+        #SET(%TSControlVar,%TSControlVar + 1)
+       #ENDIF
+        #ENDFOR
+        #SET(%TSTopLeftVar,1)
+        #FOR(%TSBottomRightGroup)
+       #IF(~%TSBottomRightResize)
+        #IF(%TSBottomRightOffset)
+        TS::BROffset%TSSliderNumber{PROP:XPOS}= TS::BROffset%TSSliderNumber{PROP:XPOS} + RegionX#
+        #ELSE
+        %TSBottomRight{PROP:XPOS}= %TSBottomRight{PROP:XPOS} + RegionX#
+        #ENDIF
+       #ELSE
+        #IF(%TSBottomRightOffset)
+        TS::BROffset%TSSliderNumber{PROP:XPOS} = TS::BROffset%TSSliderNumber{PROP:XPOS} + RegionX#
+        TS::BROffset%TSSliderNumber{PROP:WIDTH} = TS::BROffset%TSSliderNumber{PROP:WIDTH} - RegionX#
+        #ELSE
+        %TSBottomRight{PROP:XPOS} = %TSBottomRight{PROP:XPOS} + RegionX#
+        %TSBottomRight{PROP:WIDTH} = %TSBottomRight{PROP:WIDTH} - RegionX#
+        #ENDIF
+        #SET(%TSControlVar,%TSControlVar + 1)
+       #ENDIF
+        #ENDFOR
+        TS::SliderX%TSSliderNumber=%TSSliderControl{PROP:XPOS}
+      #ENDIF
+      #IF(%TSMoveUpDown)
+        RegionY# = %TSSliderControl{PROP:YPOS} - TS::SliderY%TSSliderNumber
+        #SET(%TSTopLeftVar,1)
+        #FOR(%TSTopLeftGroup)
+       #IF(~%TSTopLeftResize)
+        #IF(%TSTopLeftOffset)
+        TS::SliderX%TSSliderNumber{PROP:YPOS}= TS::SliderX%TSSliderNumber{PROP:YPOS} + RegionY#
+        #ELSE
+        %TSTopLeft{PROP:YPOS}= %TSTopLeft{PROP:YPOS} + RegionY#
+        #ENDIF
+       #ELSE
+        #IF(%TSTopLeftOffset)
+        TS::SliderX%TSSliderNumber{PROP:HEIGHT} = TS::SliderX%TSSliderNumber{PROP:HEIGHT} + RegionY#
+        #ELSE
+        %TSTopLeft{PROP:HEIGHT} = %TSTopLeft{PROP:HEIGHT} + RegionY#
+        #ENDIF
+        #SET(%TSTopLeftVar,%TSTopLeftVar + 1)
+       #ENDIF
+        #ENDFOR
+        #SET(%TSTopLeftVar,1)
+        #FOR(%TSBottomRightGroup)
+       #IF(~%TSBottomRightResize)
+        #IF(%TSBottomRightOffset)
+        TS::BROffset%TSSliderNumber{PROP:YPOS}= TS::BROffset%TSSliderNumber{PROP:YPOS} + RegionY#
+        #ELSE
+        %TSBottomRight{PROP:YPOS}= %TSBottomRight{PROP:YPOS} + RegionY#
+        #ENDIF
+       #ELSE
+        #IF(%TSBottomRightOffset)
+        TS::BROffset%TSSliderNumber{PROP:YPOS} = TS::BROffset%TSSliderNumber{PROP:YPOS} + RegionY#
+        TS::BROffset%TSSliderNumber{PROP:HEIGHT} = TS::BROffset%TSSliderNumber{PROP:HEIGHT} - RegionY#
+        #ELSE
+        %TSBottomRight{PROP:YPOS} = %TSBottomRight{PROP:YPOS} + RegionY#
+        %TSBottomRight{PROP:HEIGHT} = %TSBottomRight{PROP:HEIGHT} - RegionY#
+        #ENDIF
+        #SET(%TSTopLeftVar,%TSTopLeftVar + 1)
+       #ENDIF
+        #ENDFOR
+        TS::SliderY%TSSliderNumber=%TSSliderControl{PROP:YPOS}
+      #ENDIF
+       #FOR(%TSTopLeftGroup)
+       #IF(%TSTopLeftPB)
+       #IF(%TSTopLeftOffset)
+       TC_PROP:BRW(TS::SliderX%TSSliderNumber,TCPROP:Rows,TS::SliderX%TSSliderNumber{PROP:Items})
+       POST(TCEVENT:SetQueuePosition,TS::SliderX%TSSliderNumber)
+       #ELSE
+       TC_PROP:BRW(%TSTopLeft,TCPROP:Rows,%TSTopLeft{PROP:Items})
+       POST(TCEVENT:SetQueuePosition,%TSTopLeft)
+       #ENDIF
+       #ENDIF
+       #ENDFOR
+       #FOR(%TSBottomRightGroup)
+       #IF(%TSBottomRightPB)
+       #IF(%TSBottomRightOffset)
+       TC_PROP:BRW(TS::BROffset%TSSliderNumber,TCPROP:Rows,TS::BROffset%TSSliderNumber{PROP:Items})
+       POST(TCEVENT:SetQueuePosition,TS::BROffset%TSSliderNumber)
+       #ELSE
+       TC_PROP:BRW(%TSBottomRight,TCPROP:Rows,%TSBottomRight{PROP:Items})
+       POST(TCEVENT:SetQueuePosition,%TSBottomRight)
+       #ENDIF
+       #ENDIF
+       #ENDFOR
+       #FOR(%TSTopLeftGroup)
+       #IF(%TSTopLeftOffset)
+       UNHIDE(TS::SliderX%TSSliderNumber)
+       #ELSE
+       UNHIDE(%TSTopLeft)
+       #ENDIF
+      #ENDFOR
+      #FOR(%TsBottomRightGroup)
+       #IF(%TSBottomRightOffset)
+       UNHIDE(TS::BROffset%TSSliderNumber)
+       #ELSE
+       UNHIDE(%TSBottomRight)
+       #ENDIF
+      #ENDFOR
+#SET(%TSSliderNumber,%TSSliderNumber+1)
+#ENDFOR
+#ENDAT
+#AT(%ProcedureRoutines)
+#SET(%TSSliderNumber,0)
+#FOR (%TSSliderGroup)
+  #IF(%TSSaveInINI)
+  #SET(%TSSliderNumber,1)
+  #ENDIF
+#ENDFOR
+#IF(%TSSliderNumber)
+TS::ControlSetup   Routine
+    #FOR (%TSSliderGroup)
+      #IF(%TSSaveInINI)
+       #IF(%TSMoveLeftRight)
+        #IF(%TSUseIniVariable)
+    XPOS#=GetIni('%Procedure' & %TSIniVariable,'X%TSSliderControl',,%TSIniVariable)
+        #ELSE
+          #IF(%TSUseGizmoINI)
+    XPOS#=GetIni('%Procedure','X%TSSliderControl',,'%TSGizmoINI2')
+          #ELSE
+    XPOS#=GetIni('%Procedure','X%TSSliderControl',,'%IniFileName')
+          #ENDIF
+        #ENDIF
+    IF XPOS#
+      %TSSliderControl{PROP:XPOS}=XPOS#
+    .
+         #IF(%TSInitialPercent<>'' AND %TSControlType='Sliding Control')
+           #IF(%TSControlMoves='Right To Left')
+    XPOS#=%TSBorderControl{prop:xpos} + ((%TSBorderControl{prop:width}-(%TSSliderControl{prop:width}/2))*((100-%TSInitialPercent)/100))
+           #ELSE
+    XPOS#=%TSBorderControl{prop:xpos} + ((%TSBorderControl{prop:width}-(%TSSliderControl{prop:width}/2))*(%TSInitialPercent/100))
+           #ENDIF
+    %TSSliderControl{PROP:XPOS}=XPOS#
+    %TSRelativeVar=%TSInitialPercent
+         #ENDIF
+       #ENDIF
+       #IF(%TSMoveUpDown)
+         #IF(%TSUseIniVariable)
+    YPOS#=GetIni('%Procedure' & %TSIniVariable,'Y%TSSliderControl',,%TSIniVariable)
+         #ELSE
+           #IF(%TSUseGizmoINI)
+    YPOS#=GetIni('%Procedure','Y%TSSliderControl',,'%TSGizmoINI2')
+           #ELSE
+    YPOS#=GetIni('%Procedure','Y%TSSliderControl',,'%IniFileName')
+           #ENDIF
+         #ENDIF
+    IF YPOS#
+       %TSSliderControl{PROP:YPOS}=YPOS#
+    .
+         #IF(%TSInitialPercent<>'' AND %TSControlType='Sliding Control')
+            #IF(%TSControlMoves='Bottom To Top')
+    YPOS#=%TSBorderControl{prop:ypos} + ((%TSBorderControl{prop:height}-(%TSSliderControl{prop:height}/2))*((100-%TSInitialPercent)/100))
+            #ELSE
+    YPOS#=%TSBorderControl{prop:ypos} + ((%TSBorderControl{prop:height}-(%TSSliderControl{prop:height}/2))*(%TSInitialPercent/100))
+            #ENDIF
+    %TSSliderControl{PROP:YPOS}=YPOS#
+    %TSRelativeVar=%TSInitialPercent
+         #ENDIF
+       #ENDIF
+    DO TS::Slider%TSSliderNumber
+    #SET(%TSSliderNumber,%TSSliderNumber+1)
+      #ENDIF
+    #ENDFOR
+
+TS::ControlSave   Routine
+    #FOR (%TSSliderGroup)
+    #IF(%TSSaveInINI)
+    #IF(%TSMoveLeftRight)
+    #IF(%TSUseIniVariable)
+    PutIni('%Procedure' & %TSIniVariable,'X%TSSliderControl',%TSSliderControl{PROP:XPOS},%TSIniVariable)
+    #ELSE
+    #IF(%TSUseGizmoINI)
+    PutIni('%Procedure','X%TSSliderControl',%TSSliderControl{PROP:XPOS},'%TSGizmoINI2')
+    #ELSE
+    PutIni('%Procedure','X%TSSliderControl',%TSSliderControl{PROP:XPOS},'%IniFileName')
+    #ENDIF
+    #ENDIF
+    #ENDIF
+    #IF(%TSMoveUpDown)
+    #IF(%TSUseIniVariable)
+    PutIni('%Procedure' & %TSIniVariable,'Y%TSSliderControl',%TSSliderControl{PROP:YPOS},%TSIniVariable)
+    #ELSE
+    #IF(%TSUseGizmoINI)
+    PutIni('%Procedure','Y%TSSliderControl',%TSSliderControl{PROP:YPOS},'%TSGizmoINI2')
+    #ELSE
+    PutIni('%Procedure','Y%TSSliderControl',%TSSliderControl{PROP:YPOS},'%IniFileName')
+    #ENDIF
+    #ENDIF
+    #ENDIF
+    #ENDIF
+    #ENDFOR
+#ENDIF
+#ENDAT
+
+#AT (%BeforeWindowClosing)
+#SET(%TSSliderNumber,0)
+#FOR (%TSSliderGroup)
+  #IF(%TSSaveInINI)
+  #SET(%TSSliderNumber,1)
+  #ENDIF
+#ENDFOR
+#IF(%TSSliderNumber)
+   !saving control format
+   Do TS::ControlSave
+ #ENDIF
+#ENDAT
+
+#!------------------------------------------------------------------------
+#EXTENSION(TimeSaverCompilerCheater,'TimeSaver Compiler Cheater'),PROCEDURE,LAST,HLP('Miscellaneous Utilities')
+#DISPLAY('This Extension moves all of the Procedure-Generated Code')
+#DISPLAY('to a Routine called TS::AcceptLoop.  This can help prevent')
+#DISPLAY('the dreaded "Dynamic Pool Limit Exceeded" error!')
+#AT(%DataSectionAfterWindow)
+  #EMBED(%TSPreparingToProcessTheWindow,'TS-Preparing To Process The Window')
+  CODE
+  Do TS::AcceptLoop
+
+TS::AcceptLoop    Routine
+  OMIT('CODE')
+#ENDAT
+#!==========================================================================
+#EXTENSION(DropDownComboOptionFiller,'Drop-Down Combo Option Filler'),PROCEDURE,HLP('Drop-Down Combo Option Filler')
+#BOXED
+#BUTTON ('Drop-Down Combo Controls'),MULTI(%TSDropDownControls,%TSDropDownControl),INLINE
+#PROMPT ('Drop-Down Combo Control:',CONTROL),%TSDropDownControl
+#PROMPT ('Choice-Related Variable:',FIELD),%TSChoiceVar
+#PROMPT ('Use Selection Number',CHECK),%TSUseSelection
+#PROMPT ('Select First Entry If Blank',CHECK),%TSSelectFirst
+#PROMPT ('Compare String From 1 to:',@N_3),%TSCompareStringTo,default(0)
+#DISPLAY('         (Set to 0 to compare the full string)')
+#PROMPT ('Fill List Condition: IF ',@S20),%TSSetOnCondition
+#PROMPT ('Populate QUEUE',CHECK),%TSPopulateQueue
+#BOXED,WHERE(%TSPopulateQueue)
+#PROMPT ('Sort QUEUE',CHECK),%TSSortQueue
+#PROMPT ('QUEUE Name:',FIELD),%TSQueueName
+#PROMPT ('QUEUE Field:',FIELD),%TSQueueField
+#ENDBOXED
+#BOXED  ('Drop-List Selections')
+#BUTTON ('Selection'),MULTI(%TSDropDownGroup,%TSDropDownOptions),INLINE
+#PROMPT ('Selection:',@S60),%TSDropDownOptions
+#BOXED,WHERE(%TSPopulateQueue)
+#PROMPT ('Condition: IF ',@S200),%TSDDCondition
+#ENDBOXED
+#ENDBUTTON
+#ENDBOXED
+#ENDBUTTON
+#ENDBOXED
+#ATSTART
+#DECLARE(%TSDropDownUseVar)
+#DECLARE(%TSCounter)
+#ENDAT
+#AT(%AfterWindowOpening)
+ Do PTS::Drop::%ActiveTemplateInstance
+#ENDAT
+#AT(%ProcedureRoutines)
+PTS::Drop::%ActiveTemplateInstance  Routine
+#FOR(%TSDropDownControls)
+#IF(%TSSetOnCondition)
+ IF %TSSetOnCondition
+#ENDIF
+#IF(%TSChoiceVar)
+  TSChoice#=0
+#ENDIF
+#IF(%TSPopulateQueue)
+ CLEAR(%TSQueueName)
+#ELSE
+#CLEAR(%TSDropDownUseVar)
+#ENDIF
+#SET(%TSCounter,1)
+#FOR(%TSDropDownGroup)
+#IF(%TSPopulateQueue)
+#IF(%TSDDCondition<>'')
+ IF %TSDDCondition
+#ENDIF
+  %TSQueueField='%TSDropDownOptions'
+  #IF(%TSSortQueue)
+  ADD(%TSQueueName,%TSQueueField)
+  #ELSE
+  ADD(%TSQueueName)
+  #ENDIF
+#IF(%TSDDCondition<>'')
+ END
+#ENDIF
+#ELSE
+#IF(%TSChoiceVar AND ~%TSUseSelection)
+ #IF(%TSCompareStringTo<>0)
+  IF %TSChoiceVar=SUB('%TSDropDownOptions',1,%TSCompareStringTo)
+ #ELSE
+  IF %TSChoiceVar='%TSDropDownOptions'
+ #ENDIF
+    TSChoice#=%TSCounter
+  END
+#SET(%TSCounter,%TSCounter + 1)
+#ENDIF
+#IF(INSTANCE(%TSDropDownGroup)=ITEMS(%TSDropDownGroup))
+#SET(%TSDropDownUseVar,%TSDropDownUseVar & %TSDropDownOptions)
+#ELSE
+#SET(%TSDropDownUseVar,%TSDropDownUseVar & %TSDropDownOptions & '|')
+#ENDIF
+#ENDIF
+#ENDFOR
+#IF(%TSUseSelection)
+  TSChoice#=%TSChoiceVar
+#ENDIF
+#IF(~%TSPopulateQueue)
+  %TSDropDownControl{PROP:From}='%TSDropDownUseVar'
+#ELSE
+#IF(%TSChoiceVar)
+#IF(%TSCompareStringTo)
+  %TSQueueField = SUB(%TSChoiceVar,1,%TSCompareStringTo)
+  Loop TSChoice#=1 to Records(%TSQueueName)
+    Get(%TSQueueName,TSChoice#)
+    #IF(%TSCompareStringTo<>0)
+    IF SUB(%TSQueueField,1,%TSCompareStringTo)=SUB(%TSChoiceVar,1,%TSCompareStringTo)
+    #ELSE
+    IF %TSQueueField=%TSChoiceVar
+    #ENDIF
+       break
+    .
+  .
+#ELSE
+  %TSQueueField = %TSChoiceVar
+  GET(%TSQueueName,%TSQueueField)
+  IF ~ERROR()
+     TSChoice#=POINTER(%TSQueueName)
+  .
+#ENDIF
+#ENDIF
+#ENDIF
+#IF(%TSChoiceVar)
+  %TSDropDownControl{PROP:Use}=%TSChoiceVar
+  !SELECT(%TSDropDownControl,TSChoice#)
+  %TSDropDownControl{Prop:Selected} = TSChoice#
+#IF(%TSSelectFirst)
+  IF %TSChoiceVar=''
+   !SELECT(%TSDropDownControl,1)
+   %TSDropDownControl{Prop:Selected} = 1
+  .
+#ENDIF
+#ELSE
+#IF(%TSSelectFirst)
+  SELECT(%TSDropDownControl,1)
+#ENDIF
+#ENDIF
+#IF(%TSSetOnCondition)
+ End
+#EndIF
+#ENDFOR
+#ENDAT
+#!=======================================================
+#EXTENSION(SetWindowText,'Set Window Text'),PROCEDURE,HLP('Miscellaneous Utilities')
+#DISPLAY('This Template will put a heading on your')
+#DISPLAY('Window.  You may define a Variable OR a')
+#DISPLAY('Text string.  Make sure to put single quotes')
+#DISPLAY('around your Text.  You may also place')
+#DISPLAY('a Variable in the Text Prompt by placing')
+#DISPLAY('an exclamation point (!) in front of it.')
+#PROMPT('Variable:',FIELD),%TSWindowField
+#PROMPT('Text (use Single Quotes):',@S200),%TSWindowText
+#AT(%AfterWindowOpening)
+#IF(%TSWindowField)
+%Window{Prop:Text}=%TSWindowField
+#ELSE
+#IF(SUB(%TSWindowText,1,1)='!')
+%Window{Prop:Text}=SUB(%TSWindowText,2,199)
+#ELSE
+%Window{Prop:Text}=%TSWindowText
+#END
+#ENDIF
+#ENDAT
+#!==========================================================
+#EXTENSION(DoNotOpenFiles,'Do Not Open Selected Files'),PROCEDURE
+#DISPLAY('This Template will cause the Files listed')
+#DISPLAY('below to NOT be opened at the beginning of')
+#DISPLAY('the procedure.')
+#BOXED
+#PROMPT ('File To Not Open',FILE), %TSFilesNotToOpen, REQ, INLINE, MULTI('Files Not To Open')
+#ENDBOXED
+
+#AT(%ProcedureSetup)
+#FOR(%TSFilesNotToOpen)
+%TSFilesNotToOpen::Used += 1
+#ENDFOR
+#ENDAT
+
+#AT(%EndOfProcedure)
+#FOR(%TSFilesNotToOpen)
+%TSFilesNotToOpen::Used -= 1
+#ENDFOR
+#ENDAT
+
+#!-------------------------------------------------------------
+#CODE(AddLabel,'Add A Label To Generated Source'),PROCEDURE
+#DISPLAY('This Code Template will allow you to add')
+#DISPLAY('a Label to your generated code.')
+#PROMPT('Label To Add:',@S40),%PTSLabelCode
+#CREATE('$$PTSL$$.TMP')
+#REDIRECT('$$PTSL$$.TMP')
+%PTSLabelCode
+#CLOSE('$$PTSL$$.TMP')
+#APPEND('$$PTSL$$.TMP')
+#!------------------------------------------------
+#CODE(GetIniGenerator,'GetIni Code Generator'),PROCEDURE
+#BOXED('')
+#PROMPT('INI Section:',@S50),%PTSSection
+#PROMPT('INI Entry:',@S50),%PTSEntry
+#PROMPT('Value To Set:',FIELD),%PTSValue
+#PROMPT('Default Value:',@S50),%PTSDefaultValue
+#PROMPT('Use Condition',CHECK),%PTSUseCondition
+#BOXED (''),Where(%PTSUseCondition)
+#PROMPT('Condition:   If',@S80),%PTSCondition
+#ENDBOXED
+#PROMPT('Use Default INI File',CHECK),%PTSUseDefault,DEFAULT(1)
+ #BOXED('Specify INI File'),WHERE(~%PTSUseDefault)
+#PROMPT('INI File To Use:',@S50),%PTSINIToUse
+#PROMPT('Allow Multiple User Configs',CHECK),%TSUseIniVariable
+   #BOXED('Variable'),WHERE(%TSUseIniVariable)
+#PROMPT('Unique User-ID Variable:',@S20),%TSIniVariable
+   #ENDBOXED
+ #ENDBOXED
+#ENDBOXED
+
+#IF(%PTSUseCondition)
+ IF %PTSCondition
+#ENDIF
+#IF(%TSUseIniVariable AND ~%PTSUseDefault)
+    %PTSValue=GetIni('%PTSSection','%PTSEntry',%PTSDefaultValue,%TSIniVariable)
+#ELSE
+  #IF(%TSUseGizmoINI)
+    %PTSValue=GetIni('%PTSSection','%PTSEntry','%PTSDefaultValue','%TSGizmoINI2')
+  #ELSE
+    %PTSValue=GetIni('%PTSSection','%PTSEntry','%PTSDefaultValue','%IniFileName')
+  #ENDIF
+#ENDIF
+#IF(%PTSUseCondition)
+ End
+#ENDIF
+
+
+#!------------------------------------------------
+#CODE(PutIniGenerator,'PutIni Code Generator'),PROCEDURE
+#BOXED  ('')
+#PROMPT ('INI Section:',@S50),%PTSSection
+#PROMPT ('INI Entry:',@S50),%PTSEntry
+#PROMPT ('Value To Save:',FIELD),%PTSValue
+#PROMPT ('Fixed Value:',@S50),%PTSDefaultValue
+#DISPLAY('Fixed Value overrides Field Value')
+#PROMPT ('Use Condition',CHECK),%PTSUseCondition
+#BOXED  (''),Where(%PTSUseCondition)
+#PROMPT ('Condition:   If',@S80),%PTSCondition
+#ENDBOXED
+#PROMPT ('Use Default INI File',CHECK),%PTSUseDefault,DEFAULT(1)
+ #BOXED ('Specify INI File'),WHERE(~%PTSUseDefault)
+#PROMPT ('INI File To Use:',@S50),%PTSINIToUse
+#PROMPT ('Allow Multiple User Configs',CHECK),%TSUseIniVariable
+   #BOXED('Variable'),WHERE(%TSUseIniVariable)
+#PROMPT ('Unique User-ID Variable:',@S20),%TSIniVariable
+   #ENDBOXED
+ #ENDBOXED
+#ENDBOXED
+#IF(%PTSUseCondition)
+ IF %PTSCondition
+#ENDIF
+#IF(%TSUseIniVariable AND ~%PTSUseDefault)
+  #IF(%PTSDefaultValue<>'')
+  PutIni('%PTSSection','%PTSEntry',%PTSUseDefault,%TSIniVariable)
+  #ELSE
+  PutIni('%PTSSection','%PTSEntry',%PTSValue,%TSIniVariable)
+  #ENDIF
+#ELSE
+  #IF(%TSUseGizmoINI)
+    #IF(%PTSDefaultValue<>'')
+  PutIni('%PTSSection','%PTSEntry',%PTSUseDefault,'%TSGizmoINI2')
+    #ELSE
+  PutIni('%PTSSection','%PTSEntry',%PTSValue,'%TSGizmoINI2')
+    #ENDIF
+  #ELSE
+    #IF(%PTSDefaultValue<>'')
+  PutIni('%PTSSection','%PTSEntry',%PTSUseDefault,'%IniFileName')
+    #ELSE
+  PutIni('%PTSSection','%PTSEntry',%PTSValue,'%IniFileName')
+    #ENDIF
+  #ENDIF
+#ENDIF
+#IF(%PTSUseCondition)
+ End
+#ENDIF
+
+
