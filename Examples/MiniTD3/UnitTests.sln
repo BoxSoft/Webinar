@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+# Clarion 2.1.0.2447
+Project("{12B76EC0-1D7B-4FA7-A7D0-C524288B48A1}") = "UnitTests", "UnitTests.cwproj", "{D0059D25-4F89-4D43-B2C1-C20D96270267}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{{2150E333-8FDC-42A3-9474-1A3956D46DE8}}"
+	ProjectSection(SolutionItems) = postProject
+		UnitTests.app = UnitTests.app
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Classes", "Classes", "{79E935EC-5C93-4199-922C-023AE8190174}"
+	ProjectSection(SolutionItems) = postProject
+		MTD3_Cell.clw = MTD3_Cell.clw
+		MTD3_Cell.inc = MTD3_Cell.inc
+		MTD3_Grid.clw = MTD3_Grid.clw
+		MTD3_Grid.inc = MTD3_Grid.inc
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D0059D25-4F89-4D43-B2C1-C20D96270267}.Debug|Win32.Build.0 = Debug|Win32
+		{D0059D25-4F89-4D43-B2C1-C20D96270267}.Debug|Win32.ActiveCfg = Debug|Win32
+		{D0059D25-4F89-4D43-B2C1-C20D96270267}.Release|Win32.Build.0 = Release|Win32
+		{D0059D25-4F89-4D43-B2C1-C20D96270267}.Release|Win32.ActiveCfg = Release|Win32
+	EndGlobalSection
+EndGlobal

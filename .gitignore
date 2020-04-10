@@ -1,8 +1,14 @@
-*.sln.cache
+*.bpp
 *.cwproj.FileList.xml
 *.dll
 *.exe
+*.ini
 *.lib
+*.log
 *.map
 *.obj
 *.rsc
+*.shp
+*.sln.cache
+*.txa
+/Examples/*/src/

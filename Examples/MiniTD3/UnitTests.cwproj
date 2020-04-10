@@ -1,0 +1,126 @@
+﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{D0059D25-4F89-4D43-B2C1-C20D96270267}</ProjectGuid>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">Win32</Platform>
+    <OutputType>Library</OutputType>
+    <RootNamespace>UnitTests</RootNamespace>
+    <AssemblyName>UnitTests</AssemblyName>
+    <OutputName>UnitTests</OutputName>
+    <CWOutputType>Exe</CWOutputType>
+    <Model>Dll</Model>
+    <RunPostBuildEvent>OnBuildSuccess</RunPostBuildEvent>
+    <DefineConstants>_ABCDllMode_=&gt;0%3b_ABCLinkMode_=&gt;1</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>True</DebugSymbols>
+    <DebugType>Full</DebugType>
+    <vid>full</vid>
+    <check_stack>True</check_stack>
+    <check_index>True</check_index>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>False</DebugSymbols>
+    <DebugType>None</DebugType>
+    <vid>off</vid>
+    <check_stack>False</check_stack>
+    <check_index>False</check_index>
+  </PropertyGroup>
+  <ItemGroup>
+    <FileDriver Include="ASCII" />
+    <Compile Include="UnitTests.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests001.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests002.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests003.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests004.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests005.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests006.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests007.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests008.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests009.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests010.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests011.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests012.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests013.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests014.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests015.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests016.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests017.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests018.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests019.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests020.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests021.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests022.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests023.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests024.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests025.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests026.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests027.clw">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UNITTESTS_BC.CLW">
+      <Generated>true</Generated>
+    </Compile>
+    <Compile Include="UnitTests_BC0.CLW">
+      <Generated>true</Generated>
+    </Compile>
+  </ItemGroup>
+  <Import Project="$(ClarionBinPath)\SoftVelocity.Build.Clarion.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>ClarionTest UnitTests.dll</PostBuildEvent>
+  </PropertyGroup>
+</Project>
