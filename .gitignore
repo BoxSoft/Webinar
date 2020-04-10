@@ -1,1 +1,8 @@
-
+*.sln.cache
+*.cwproj.FileList.xml
+*.dll
+*.exe
+*.lib
+*.map
+*.obj
+*.rsc
