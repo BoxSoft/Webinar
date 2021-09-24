@@ -14,7 +14,7 @@ AddHandler                      PROCEDURE(SIGNED HandlerThread,<SIGNED ManagerTh
 Debug                           PROCEDURE(STRING DebugMessage)
 FetchHandler                    PROCEDURE(SIGNED HandlerThread),BYTE
 FetchMessage                    PROCEDURE(SIGNED MessageID),BYTE
-IsHandlerActive                 PROCEDURE(SIGNED HandlerThread),BYTE
+IsHandlerActive                 PROCEDURE(SIGNED HandlerThread),BOOL
 IsMessageDoing                  PROCEDURE(LONG MessageID),BOOL
 ManagersWorkers                 PROCEDURE(SIGNED ManagerThread),LONG
 Messages                        PROCEDURE,LONG

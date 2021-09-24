@@ -187,7 +187,7 @@ ReturnValue                     BYTE(Level:Notify)
   RETURN ReturnValue
 
 !==============================================================================
-CL_Threader_Hub.IsHandlerActive   PROCEDURE(SIGNED HandlerThread)!,BYTE
+CL_Threader_Hub.IsHandlerActive   PROCEDURE(SIGNED HandlerThread)!,BOOL
   CODE
   RETURN CHOOSE(SELF.FetchHandler(HandlerThread) = Level:Benign)
 
