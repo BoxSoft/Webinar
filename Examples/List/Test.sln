@@ -1,0 +1,44 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+# Clarion 2.1.0.2447
+Project("{12B76EC0-1D7B-4FA7-A7D0-C524288B48A1}") = "Test", "Test.cwproj", "{FC0EA2F9-599E-49D1-B72C-171C7C345BF1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{2150E333-8FDC-42A3-9474-1A3956D46DE8}"
+	ProjectSection(SolutionItems) = postProject
+		Test.app = Test.app
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Extra Stuff", "Extra Stuff", "{75748555-79BF-4A5E-9E57-DC77A50577B8}"
+	ProjectSection(SolutionItems) = postProject
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Templates", "Templates", "{A9029D42-3365-4174-8F44-5BA194C85740}"
+	ProjectSection(SolutionItems) = postProject
+		C:\C11\Accessory\template\win\mhList.tpl = C:\C11\Accessory\template\win\mhList.tpl
+		..\..\..\Template\myclass.tpl = ..\..\..\Template\myclass.tpl
+		..\..\..\Template\myabc.tpw = ..\..\..\Template\myabc.tpw
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Classes", "Classes", "{727B0F13-4A5A-4CCB-A2D5-1975FEB48400}"
+	ProjectSection(SolutionItems) = postProject
+		..\..\LibSrc\mhList.inc = ..\..\LibSrc\mhList.inc
+		..\..\LibSrc\mhList.clw = ..\..\LibSrc\mhList.clw
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FC0EA2F9-599E-49D1-B72C-171C7C345BF1}.Debug|Win32.Build.0 = Debug|Win32
+		{FC0EA2F9-599E-49D1-B72C-171C7C345BF1}.Debug|Win32.ActiveCfg = Debug|Win32
+		{FC0EA2F9-599E-49D1-B72C-171C7C345BF1}.Release|Win32.Build.0 = Release|Win32
+		{FC0EA2F9-599E-49D1-B72C-171C7C345BF1}.Release|Win32.ActiveCfg = Release|Win32
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{727B0F13-4A5A-4CCB-A2D5-1975FEB48400} = {75748555-79BF-4A5E-9E57-DC77A50577B8}
+		{A9029D42-3365-4174-8F44-5BA194C85740} = {75748555-79BF-4A5E-9E57-DC77A50577B8}
+	EndGlobalSection
+EndGlobal
