@@ -12,3 +12,5 @@
 *.sln.cache
 *.txa
 /Examples/*/src/
+/Examples/mhList.zip
+/Examples/List/Hand-coded Lists.zip
